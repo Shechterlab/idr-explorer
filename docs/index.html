@@ -5,12 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>IDR Explorer · Shechter Lab</title>
-  <meta name="description" content="Human intrinsically disordered regions and domain-tethered IDRs (dtIDRs): the basic and acidic poles, and the methylation, phosphorylation, acetylation and glutamylation that tune their charge.">
+  <meta name="application-name" content="IDR Explorer">
+  <meta name="description" content="Human intrinsically disordered regions and domain-tethered IDRs (dtIDRs): the basic and acidic poles, the modifications that tune their charge, and interactive tests of where each modification sits.">
   <link rel="icon" href="assets/shechterlab-icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
-  <link rel="stylesheet" href="assets/idr.css?v=20261027d">
+  <link rel="stylesheet" href="assets/ptm-core.css?v=20261028c">
+  <link rel="stylesheet" href="assets/idr.css?v=20261028c">
   <script>
     try { var t = localStorage.getItem('idr-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
   </script>
@@ -19,14 +21,15 @@
   <a class="skip-link" href="#view">Skip to content</a>
   <header class="hero">
     <div class="wrap">
-      <a class="brand" href="#ideas" title="The ideas">
+      <a class="brand" href="#overview" title="Overview">
         <img src="assets/shechterlab-icon.svg" alt="" width="34" height="34">
         <div><h1>IDR Explorer</h1><small>Disordered regions, domain-tethered IDRs, and the modifications that tune their charge</small></div>
       </a>
       <nav class="tabs" aria-label="Views">
-        <a href="#ideas" data-view="ideas">Ideas</a>
-        <a href="#flanks" data-view="flanks">dtIDR flanks</a>
+        <a href="#overview" data-view="overview">Overview</a>
+        <a href="#flanks" data-view="flanks">dtIDR windows</a>
         <a href="#idrs" data-view="idrs">IDRs</a>
+        <a href="#definitions" data-view="definitions">Definitions</a>
         <a href="#about" data-view="about">Sources</a>
       </nav>
       <div class="search" role="search">
@@ -41,11 +44,15 @@
   <footer>
     <div class="wrap">
       Shechter Lab, Albert Einstein College of Medicine. <a href="https://github.com/Shechterlab/idr-explorer">Code and data</a>
-      (site, and idrkit, the sequence definitions); built from <a href="https://github.com/Shechterlab/PTM_Pipeline">PTM_Pipeline</a>
+      (site, idrkit, and the generator of the Methylarginine Site Explorer code it reuses); built from <a href="https://github.com/Shechterlab/PTM_Pipeline">PTM_Pipeline</a>
       and the lab’s MicroDomains and glu_proteomics analyses. Residue-level methylarginine evidence is in the
       <a href="https://shechterlab.github.io/PTM_Pipeline/">Methylarginine Site Explorer</a>. <span id="built"></span>
     </div>
   </footer>
-  <script src="assets/idr.js?v=20261027d" defer></script>
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+  <!-- ptm-core.js: the Methylarginine Site Explorer's charts, tests and exports (generated, tools/sync-ptm-core.mjs) -->
+  <script src="assets/ptm-core.js?v=20261028c" defer></script>
+  <script src="assets/idr-stats.js?v=20261028c" defer></script>
+  <script src="assets/idr.js?v=20261028c" defer></script>
 </body>
 </html>

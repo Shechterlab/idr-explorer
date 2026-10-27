@@ -1,6 +1,7 @@
 import math
 
 import numpy as np
+import pytest
 
 import idrkit as K
 
@@ -92,3 +93,18 @@ def test_delta_matches_localcider():
 def test_delta_z_sees_local_blocks():
     assert K.delta_z("KKKKKEEEEE" * 6)[1] > 2
     assert K.delta_z("KEKEKEKEKE" * 6)[1] < -1
+
+
+def test_modified_charge_and_shift():
+    seq = "KKKKKSSSSSEEEEE"
+    q = K.modified_charge(seq, {5: "phospho", 0: "acetyl"})
+    assert q[5] == -2 and q[0] == 0 and q[10] == -1
+    sh = K.charge_shift(seq, {5: "phospho", 6: "phospho"})
+    assert sh["ncpr0"] == 0 and abs(sh["ncpr1"] - (-4 / 15)) < 1e-12
+    assert sh["fcr1"] > sh["fcr0"]
+    # phosphorylating the serines next to the acidic block lengthens it: charge blocks become more segregated
+    assert K.charge_shift(seq, {i: "phospho" for i in range(5, 10)})["delta1"] > sh["delta0"]
+    # methylation keeps the charge; a modification the residue cannot carry is refused
+    assert (K.modified_charge(seq, {0: "methyl"}) == K.charge_vector(seq)).all()
+    with pytest.raises(ValueError):
+        K.modified_charge(seq, {0: "phospho"})

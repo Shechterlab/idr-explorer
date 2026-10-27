@@ -22,7 +22,8 @@
   --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-  /* tracks: the explorer's TOKENS.light, plus the two poles and the modifications this site adds */
+  /* tracks: the explorer's TOKENS (meth, kme, ptm grey, dna amber for CK2), the two poles, and the modifications this site adds:
+     cit, kac, sumo, adpr chosen with the dataviz palette validator so every pair of adjacent map rows passes in both themes */
   --basic: #2F6FD6;
   --acidic: #D64545;
   --basic-wash: #DCE8F8;
@@ -37,9 +38,12 @@
   --kme: #A21CAF;
   --phospho: #6B7F88;
   --ck2: #B7791F;
-  --kac: #7B3294;
+  --kac: #EB6834;
+  --sumo: #4D7C0F;
   --glu: #1B8A5A;
   --hybrid: #7B3294;
+  --cit: #0E7490;
+  --adpr: #78350F;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -49,7 +53,7 @@
     --brand-ink: #6cc6db; --shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
     --basic: #5B93E8; --acidic: #E8706F; --basic-wash: #1C3150; --acidic-wash: #4A2223;
     --domain: #1F5566; --domain-ink: #E3F4F8; --family: #40391F; --dis: #8FA6B0; --rg: #5A2C3A; --rg-ink: #F6C9D6;
-    --meth: #E0708A; --kme: #D46BE0; --phospho: #8FA3AB; --ck2: #D9A548; --kac: #B98BE0; --glu: #3DBB85; --hybrid: #B98BE0;
+    --meth: #E0708A; --kme: #D46BE0; --phospho: #8FA3AB; --ck2: #D9A548; --kac: #D95926; --sumo: #84CC16; --glu: #3DBB85; --hybrid: #B98BE0; --cit: #3FB5CF; --adpr: #FCD34D;
     color-scheme: dark;
   }
 }
@@ -59,7 +63,7 @@
   --brand-ink: #6cc6db; --shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   --basic: #5B93E8; --acidic: #E8706F; --basic-wash: #1C3150; --acidic-wash: #4A2223;
   --domain: #1F5566; --domain-ink: #E3F4F8; --family: #40391F; --dis: #8FA6B0; --rg: #5A2C3A; --rg-ink: #F6C9D6;
-  --meth: #E0708A; --kme: #D46BE0; --phospho: #8FA3AB; --ck2: #D9A548; --kac: #B98BE0; --glu: #3DBB85; --hybrid: #B98BE0;
+  --meth: #E0708A; --kme: #D46BE0; --phospho: #8FA3AB; --ck2: #D9A548; --kac: #D95926; --sumo: #84CC16; --glu: #3DBB85; --hybrid: #B98BE0; --cit: #3FB5CF; --adpr: #FCD34D;
   color-scheme: dark;
 }
 :root[data-theme="light"] { color-scheme: light; }
@@ -192,3 +196,62 @@ svg text { font-family: var(--font-body); fill: var(--ink-2); }
 .about dd { margin: 0; color: var(--ink-2); }
 footer { border-top: 1px solid var(--line); padding: 16px 0 28px; color: var(--muted); font-size: 0.84rem; }
 .loading { color: var(--muted); padding: 24px 0; }
+
+/* ---- Overview (the Methylarginine Site Explorer's tiles and charts come from ptm-core.css) */
+.sel-panel summary { cursor: pointer; padding: 2px 0; }
+.sel-panel summary .muted { font-size: 0.88rem; }
+.sel-form { margin-top: 12px; }
+.sel-form .wide { flex: 1 1 100%; }
+.sel-form fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px 8px; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; min-width: 0; }
+.sel-form legend { font-size: 0.78rem; color: var(--muted); padding: 0 4px; }
+.sel-actions { display: flex; gap: 8px; align-items: center; }
+.sel-banner { background: var(--teal-wash); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px; font-size: 0.9rem; }
+.sec-nav { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0; font-size: 0.92rem; }
+.sec-q { margin: 6px 0 12px; font-size: 1.45rem; }
+.note-panel p { margin: 0; color: var(--ink-2); }
+.chart-card { margin-bottom: 16px; }
+.chart-card .note { font-size: 0.84rem; color: var(--muted); margin: 10px 0 0; }
+.texp, [data-pdf-page] { display: none !important; }   /* the explorer's per-tile PDF/SVG/PNG need its page exporter; the charts export */
+.ideas-sec { margin-top: 28px; }
+.ideas-sec h2 { margin-bottom: 10px; }
+.pole { display: inline-block; font-size: 0.68rem; font-weight: 700; line-height: 1.4; padding: 0 4px; border-radius: 3px; color: #fff; vertical-align: 1px; }
+.pole.a { background: var(--acidic); }
+.pole.b { background: var(--basic); }
+.h-sm { margin: 0 0 6px; font-size: 1.05rem; }
+.mt { margin-top: 16px; }
+.prot-head .acc { font-size: 1rem; }
+.prot-head .pmeta { margin: 0 0 6px; }
+.defs dt { scroll-margin-top: 80px; }
+.defs h3 { scroll-margin-top: 80px; margin-top: 0; }
+.bx-plot { width: 100%; max-width: 640px; height: auto; display: block; }
+.bx line { stroke: var(--ink-2); stroke-width: 1.2; }
+.bx rect { fill: var(--domain); stroke: var(--domain-ink); }
+.bx.in rect { fill: var(--acidic-wash); stroke: var(--acidic); }
+.bx-med { stroke: var(--ink) !important; stroke-width: 2 !important; }
+.bx-lab, .bx-tick, .bx-axt { font-size: 11px; fill: var(--muted); }
+.bx-lab { fill: var(--ink); }
+.bx-axis { stroke: var(--muted); }
+.doc-link { font-size: 0.82rem; margin-left: 4px; }
+
+/* the agnostic profile: the dataviz reference categorical slots 1-4, light and dark */
+:root { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #c98500; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; } }
+:root[data-theme="dark"] { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; }
+.ag-plot { width: 100%; height: auto; display: block; max-width: 820px; }
+.ag-plot.compact { max-width: 320px; }
+.ag-grid { stroke: var(--line); }
+.ag-zero { stroke: var(--muted); stroke-width: 1; }
+.ag-tick, .ag-axt { font-size: 11px; fill: var(--muted); }
+.ag-lab { font-size: 11.5px; }
+.ag-line { fill: none !important; stroke-width: 2; }
+.ag-ci { stroke-width: 1.2; opacity: 0.55; }
+.ag-pt { stroke: var(--surface); stroke-width: 1.5; }
+.ag-pt.ns { fill: var(--surface) !important; }
+.ag-s1 { stroke: var(--s1); fill: var(--s1); } .ag-s1-t { fill: var(--s1); }
+.ag-s2 { stroke: var(--s2); fill: var(--s2); } .ag-s2-t { fill: var(--s2); }
+.ag-s3 { stroke: var(--s3); fill: var(--s3); } .ag-s3-t { fill: var(--s3); }
+.ag-s4 { stroke: var(--s4); fill: var(--s4); } .ag-s4-t { fill: var(--s4); }
+.ag-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.8rem; color: var(--ink-2); margin-top: 6px; }
+.ag-key span { display: inline-flex; align-items: center; gap: 5px; }
+.ag-sw { display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: currentColor; }
+.ag-sw.ag-s1 { background: var(--s1); } .ag-sw.ag-s2 { background: var(--s2); } .ag-sw.ag-s3 { background: var(--s3); } .ag-sw.ag-s4 { background: var(--s4); }

@@ -7,9 +7,28 @@ The disordered regions of the reviewed human proteome, read two ways, with the m
 - **dtIDRs** (domain-tethered IDRs): the window beside every folded-domain edge (121,444), scored for a **basic pole**
   that arginine and lysine writers act on and an **acidic pole** that CK2 and the glutamylases act on.
 
-The site is in [`docs/`](docs/) (GitHub Pages: `main`, folder `/docs`): an Ideas page that states each claim with its
-numbers and figure, the two tables, and a map of every protein. Methylarginine evidence at residue level is in the
+The site is in [`docs/`](docs/) (GitHub Pages: `main`, folder `/docs`). Its Overview asks where each modification
+that changes charge sits (the acidic and basic dtIDR windows, blocky IDRs, acidic stretches, basic patches, RG/RGG
+clusters, kinase motifs, charge blocks, occupancy, kinds of protein), and every test runs again in the browser on a
+selection of proteins and evidence. Tables of every window and IDR, a map of every protein, and a Definitions page
+complete it. Methylarginine evidence at residue level is in the
 [Methylarginine Site Explorer](https://shechterlab.github.io/PTM_Pipeline/).
+
+## Code shared with the Methylarginine Site Explorer
+
+The Overview's charts, scorecard tiles, tooltips, SVG/PNG/TSV exports and statistics (Mantel-Haenszel, Fisher,
+hypergeometric, Benjamini-Hochberg, Mann-Whitney) are that site's own code. `tools/sync-ptm-core.mjs` copies the
+declarations named in `tools/ptm-core.json`, and everything they use, verbatim from `docs/assets/explorer.js` of
+Shechterlab/PTM_Pipeline at a pinned commit into `docs/assets/ptm-core.js` (and the matching rules into
+`ptm-core.css`); the IDR Explorer supplies its data and selection with `PTMCore.use({...})`. Never edit the generated
+files: change the explorer, update the pinned commit, and run
+
+```bash
+npm ci --prefix tools
+node tools/sync-ptm-core.mjs --from ../PTM_Pipeline     # or without --from: fetch the pinned commit from GitHub
+node tools/sync-ptm-core.mjs --check                   # CI: fail if the files differ from what the explorer gives
+node --test tests/overview.test.mjs                    # the browser's whole-dataset tests equal the Python tables
+```
 
 ## idrkit
 
@@ -23,6 +42,7 @@ The sequence definitions the lab's IDR work shares, so each is written once:
 | `acidic_stretches`, `acidic_runs`, `basic_patches`, `rg_clusters` | the sequence elements of the two poles |
 | `e_tract_count`, `ck2_motif_count`, `rg_motif_count`, `longest_acidic_run` | the grammars the dtIDR scores count |
 | `idr_intervals`, `merge_intervals` | IDRs from disorder intervals |
+| `modified_charge`, `charge_shift`, `MODIFIED_CHARGE` | the charge of modified residues (phospho −2, acetyl-K 0, citrulline 0, ...) and the NCPR and delta a sequence has with its sites modified |
 
 ```bash
 pip install "idrkit @ git+https://github.com/Shechterlab/idr-explorer"
@@ -34,11 +54,12 @@ glu_proteomics' `glu.sequence` imports its acidic stretches, RG clusters and cha
 
 ## How the data are made
 
-`docs/data/` and `docs/figures/` are generated, never edited, by `Analysis/scripts/build_idr_explorer.py` in the lab's
-MicroDomains repository, with [PTM_Pipeline](https://github.com/Shechterlab/PTM_Pipeline), glu_proteomics and this
-repository cloned beside it. `docs/data/build.json` records the commit of each repository, the MD5 of every input, the
-rules, and every number the Ideas page states. MicroDomains and glu_proteomics are private until publication; the inputs
-they read are public and listed below.
+`docs/data/` is generated, never edited, by `Analysis/scripts/build_idr_explorer.py` in the lab's MicroDomains
+repository, with [PTM_Pipeline](https://github.com/Shechterlab/PTM_Pipeline), glu_proteomics and this repository cloned
+beside it. The regions, contexts and modification kinds are defined once (MicroDomains `idr_universe.py`), the
+whole-dataset statistics come from `idr_overview_stats.py` with PTM_Pipeline's implementations, and
+`docs/data/build.json` records the commit of each repository and the MD5 of every input. MicroDomains and
+glu_proteomics are private until publication; the inputs they read are public and listed below.
 
 | Data | Source | Licence |
 | --- | --- | --- |
@@ -49,6 +70,11 @@ they read are public and listed below.
 | phosphorylation, lysine acylation, ubiquitin/SUMO, lysine methylation | iPTMnet export (Huang et al. 2018) staged in PTM_Pipeline | CC BY-NC-SA 4.0 |
 | modified residues with enzymes (CK2), ADP-ribosylation, citrullination, polyglutamylation | UniProt 2026_03 MOD_RES (PTM_Pipeline scripts/53) | CC BY 4.0 |
 | acetyl, ubiquitin, SUMO and methyl sites, Gold/Silver/Bronze | PTMeXchange human builds, PRIDE PXD079218, PXD068989, PXD068489, PXD076372 (PTM_Pipeline scripts/54) | CC0 |
+| citrullination | Rebak et al., Nat Struct Mol Biol 2024, doi:10.1038/s41594-024-01214-9 (PTM_Pipeline scripts/55) | CC BY 4.0 |
+| ADP-ribosylation | Hendriks et al., Nat Commun 2021, doi:10.1038/s41467-021-26172-4 (scripts/56) | CC BY 4.0 |
+| phosphosites and occupancy in 33 cell lines | Koenig et al., Nat Struct Mol Biol 2026, doi:10.1038/s41594-026-01877-6 (scripts/57) | CC BY 4.0 |
+| acetylation stoichiometry | Hansen et al., Nat Commun 2019, doi:10.1038/s41467-019-09024-0 (scripts/58) | CC BY 4.0 |
+| kinase motifs | Johnson et al., Nature 2023, doi:10.1038/s41586-022-05575-3, scored with kinase-library 1.8.0 | CC BY 4.0; CC BY-NC-SA 3.0 |
 | glutamylation | TTLL4 re-analysis of PRIDE PXD065251 (Dey et al., J Cell Sci 2026) | lab analysis |
 
 ## Licence
