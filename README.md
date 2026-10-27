@@ -4,23 +4,29 @@ The disordered regions of the reviewed human proteome, read two ways, with the m
 
 - **IDRs**: every MobiDB disordered region of 20 or more residues (33,542 on 12,297 proteins), with its charge, its
   charge patterning, its acidic stretches, RG/RGG clusters and basic patches, and its sites.
-- **dtIDRs** (domain-tethered IDRs): the window beside every folded-domain edge (121,444), scored for a **basic pole**
-  that arginine and lysine writers act on and an **acidic pole** that CK2 and the glutamylases act on.
+- **Domain flanks**: the residues beside every folded-domain edge (121,444; the window a domain-tethered IDR, or
+  dtIDR, would occupy), scored from sequence for basic and for acidic character. The top tenth of each score are the
+  **basic flanks** (arginine and lysine writers) and **acidic flanks** (CK2, glutamylases).
+- **Charge classes**: every IDR and flank in the Das–Pappu diagram of states, with κ and Ω, from localCIDER
+  (Holehouse et al. 2017), so a sequence can be described without any score of ours.
 
-The site is in [`docs/`](docs/) (GitHub Pages: `main`, folder `/docs`). Its Overview asks where each modification
-that changes charge sits (the acidic and basic dtIDR windows, blocky IDRs, acidic stretches, basic patches, RG/RGG
-clusters, kinase motifs, charge blocks, occupancy, kinds of protein), and every test runs again in the browser on a
-selection of proteins and evidence. Tables of every window and IDR, a map of every protein, and a Definitions page
-complete it. Methylarginine evidence at residue level is in the
+The site is in [`docs/`](docs/) (GitHub Pages: `main`, folder `/docs`). Its Overview first asks whether a domain flank is a unit at
+all (read without a window, family by family for every InterPro entry, and by charge class), then where each
+modification that changes charge sits (acidic and basic flanks, blocky IDRs, acidic stretches, basic patches, RG/RGG
+clusters, kinase motifs, charge blocks, occupancy, protein classes); every test runs again in the browser on a
+selection of proteins and evidence. Sortable tables of every protein, flank and IDR (click a row to open it), a map of
+every protein in the Methylarginine Site Explorer's style (drag to zoom, click a site), and a Definitions page complete
+it. Methylarginine evidence at residue level is in the
 [Methylarginine Site Explorer](https://shechterlab.github.io/PTM_Pipeline/).
 
 ## Code shared with the Methylarginine Site Explorer
 
 The Overview's charts, scorecard tiles, tooltips, SVG/PNG/TSV exports and statistics (Mantel-Haenszel, Fisher,
-hypergeometric, Benjamini-Hochberg, Mann-Whitney) are that site's own code. `tools/sync-ptm-core.mjs` copies the
+hypergeometric, Benjamini-Hochberg, Mann-Whitney), its tables (sortable headers, row clicks) and the marks, facts and
+folds of its protein pages are that site's own code. `tools/sync-ptm-core.mjs` copies the
 declarations named in `tools/ptm-core.json`, and everything they use, verbatim from `docs/assets/explorer.js` of
 Shechterlab/PTM_Pipeline at a pinned commit into `docs/assets/ptm-core.js` (and the matching rules into
-`ptm-core.css`); the IDR Explorer supplies its data and selection with `PTMCore.use({...})`. Never edit the generated
+`ptm-core.css`, with the rules for the classes the IDR Explorer's own markup uses, listed there too); the IDR Explorer supplies its data and selection with `PTMCore.use({...})`. Never edit the generated
 files: change the explorer, update the pinned commit, and run
 
 ```bash
@@ -39,7 +45,7 @@ The sequence definitions the lab's IDR work shares, so each is written once:
 | `charge_vector`, `ncpr`, `fcr`, `HIS` | residue charge (histidine under the value each tool uses) |
 | `delta`, `delta_z` | Das & Pappu's delta (blobs of 5 and 6, as localCIDER computes it), and its z-score against shuffles of the same residues: local charge blocks |
 | `scd`, `scd_z` | sequence charge decoration, and its shuffle z-score: long-range segregation |
-| `acidic_stretches`, `acidic_runs`, `basic_patches`, `rg_clusters` | the sequence elements of the two poles |
+| `acidic_stretches`, `acidic_runs`, `basic_patches`, `rg_clusters` | the charged sequence elements |
 | `e_tract_count`, `ck2_motif_count`, `rg_motif_count`, `longest_acidic_run` | the grammars the dtIDR scores count |
 | `idr_intervals`, `merge_intervals` | IDRs from disorder intervals |
 | `modified_charge`, `charge_shift`, `MODIFIED_CHARGE` | the charge of modified residues (phospho −2, acetyl-K 0, citrulline 0, ...) and the NCPR and delta a sequence has with its sites modified |
@@ -75,6 +81,7 @@ glu_proteomics are private until publication; the inputs they read are public an
 | phosphosites and occupancy in 33 cell lines | Koenig et al., Nat Struct Mol Biol 2026, doi:10.1038/s41594-026-01877-6 (scripts/57) | CC BY 4.0 |
 | acetylation stoichiometry | Hansen et al., Nat Commun 2019, doi:10.1038/s41467-019-09024-0 (scripts/58) | CC BY 4.0 |
 | kinase motifs | Johnson et al., Nature 2023, doi:10.1038/s41586-022-05575-3, scored with kinase-library 1.8.0 | CC BY 4.0; CC BY-NC-SA 3.0 |
+| κ, Ω, diagram-of-states classes | computed with localCIDER 0.1.21 (Holehouse et al., Biophys J 2017, doi:10.1016/j.bpj.2016.11.3200), run as a program | GPL v2 (the program) |
 | glutamylation | TTLL4 re-analysis of PRIDE PXD065251 (Dey et al., J Cell Sci 2026) | lab analysis |
 
 ## Licence

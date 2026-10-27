@@ -6,13 +6,13 @@
   <meta name="color-scheme" content="light dark">
   <title>IDR Explorer · Shechter Lab</title>
   <meta name="application-name" content="IDR Explorer">
-  <meta name="description" content="Human intrinsically disordered regions and domain-tethered IDRs (dtIDRs): the basic and acidic poles, the modifications that tune their charge, and interactive tests of where each modification sits.">
+  <meta name="description" content="Human intrinsically disordered regions and the flanks of folded domains (dtIDR windows): their charge classes, the modifications that tune their charge, and interactive tests of where each modification sits.">
   <link rel="icon" href="assets/shechterlab-icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
-  <link rel="stylesheet" href="assets/ptm-core.css?v=20261028c">
-  <link rel="stylesheet" href="assets/idr.css?v=20261028c">
+  <link rel="stylesheet" href="assets/ptm-core.css?v=20261029a">
+  <link rel="stylesheet" href="assets/idr.css?v=20261029a">
   <script>
     try { var t = localStorage.getItem('idr-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
   </script>
@@ -27,7 +27,8 @@
       </a>
       <nav class="tabs" aria-label="Views">
         <a href="#overview" data-view="overview">Overview</a>
-        <a href="#flanks" data-view="flanks">dtIDR windows</a>
+        <a href="#proteins" data-view="proteins">Proteins</a>
+        <a href="#flanks" data-view="flanks">Domain flanks</a>
         <a href="#idrs" data-view="idrs">IDRs</a>
         <a href="#definitions" data-view="definitions">Definitions</a>
         <a href="#about" data-view="about">Sources</a>
@@ -51,8 +52,8 @@
   </footer>
   <div class="tip" id="tip" role="tooltip" hidden></div>
   <!-- ptm-core.js: the Methylarginine Site Explorer's charts, tests and exports (generated, tools/sync-ptm-core.mjs) -->
-  <script src="assets/ptm-core.js?v=20261028c" defer></script>
-  <script src="assets/idr-stats.js?v=20261028c" defer></script>
-  <script src="assets/idr.js?v=20261028c" defer></script>
+  <script src="assets/ptm-core.js?v=20261029a" defer></script>
+  <script src="assets/idr-stats.js?v=20261029a" defer></script>
+  <script src="assets/idr.js?v=20261029a" defer></script>
 </body>
 </html>

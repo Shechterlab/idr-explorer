@@ -1,7 +1,7 @@
 // The Overview's tests in the browser (docs/assets/idr-stats.js with the Methylarginine Site Explorer's ptm-core.js)
 // against the same tests in Python (MicroDomains idr_overview_stats.py, written to docs/data/overview.json): for the
 // whole dataset the two must agree, so a selection is tested exactly as the whole dataset was.
-//   node --test tests/
+//   node --test tests/overview.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -49,16 +49,16 @@ test('kinase-motif tests', () => {
   }
 });
 
-test('protein classes of the pole proteins', () => {
+test('protein classes of the proteins with acidic or basic flanks', () => {
   const W = rows(D.overview.protein_sets);
-  for (const [pole, bit] of [['acidic', 0], ['basic', 1]]) {
-    const res = ST.proteinSets(ST.hasProteins(D.overview.has.indexOf(pole + '_pole')));
+  for (const [fl, bit] of [['acidic', 0], ['basic', 1]]) {
+    const res = ST.proteinSets(ST.hasProteins(D.overview.has.indexOf(fl + '_flank')));
     for (const r of res) {
-      const w = W.find((x) => x.pole === pole && x.class === r.class);
-      for (const k of ['k', 'n', 'M', 'N']) assert.equal(r[k], w[k], pole + ' ' + r.class + ' ' + k);
-      close(r.fold, w.fold, pole + ' ' + r.class + ' fold');
-      close(r.p, w.p, pole + ' ' + r.class + ' p');
-      close(r.q, w.q, pole + ' ' + r.class + ' q');
+      const w = W.find((x) => x.flank === fl && x.class === r.class);
+      for (const k of ['k', 'n', 'M', 'N']) assert.equal(r[k], w[k], fl + ' ' + r.class + ' ' + k);
+      close(r.fold, w.fold, fl + ' ' + r.class + ' fold');
+      close(r.p, w.p, fl + ' ' + r.class + ' p');
+      close(r.q, w.q, fl + ' ' + r.class + ' q');
     }
     assert.ok(bit >= 0);
   }
@@ -86,9 +86,9 @@ test('occupancy inside and outside each context', () => {
 });
 
 test('a selection: the same tests on a subset, sites outside it left out of both sides', () => {
-  const prots = new Set(ST.hasProteins(D.overview.has.indexOf('acidic_pole')));
-  const r = ST.residueTest('ck2', 'acidic_pole', { prots, keep: null });
+  const prots = new Set(ST.hasProteins(D.overview.has.indexOf('acidic_flank')));
+  const r = ST.residueTest('ck2', 'acidic_flank', { prots, keep: null });
   assert.ok(r.proteins > 0 && r.proteins <= prots.size);
-  const all = ST.residueTest('ck2', 'acidic_pole', null);
+  const all = ST.residueTest('ck2', 'acidic_flank', null);
   assert.ok(r.sites <= all.sites);
 });
