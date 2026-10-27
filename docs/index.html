@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>IDR Explorer · Shechter Lab</title>
+  <meta name="description" content="Human intrinsically disordered regions and domain-tethered IDRs (dtIDRs): the basic and acidic poles, and the methylation, phosphorylation, acetylation and glutamylation that tune their charge.">
+  <link rel="icon" href="assets/shechterlab-icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="assets/idr.css?v=20261027d">
+  <script>
+    try { var t = localStorage.getItem('idr-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#view">Skip to content</a>
+  <header class="hero">
+    <div class="wrap">
+      <a class="brand" href="#ideas" title="The ideas">
+        <img src="assets/shechterlab-icon.svg" alt="" width="34" height="34">
+        <div><h1>IDR Explorer</h1><small>Disordered regions, domain-tethered IDRs, and the modifications that tune their charge</small></div>
+      </a>
+      <nav class="tabs" aria-label="Views">
+        <a href="#ideas" data-view="ideas">Ideas</a>
+        <a href="#flanks" data-view="flanks">dtIDR flanks</a>
+        <a href="#idrs" data-view="idrs">IDRs</a>
+        <a href="#about" data-view="about">Sources</a>
+      </nav>
+      <div class="search" role="search">
+        <label for="q" class="visually-hidden">Find a protein</label>
+        <input id="q" type="search" placeholder="Gene or UniProt accession" autocomplete="off" aria-controls="suggest" aria-autocomplete="list">
+        <ul id="suggest" class="suggest" hidden></ul>
+      </div>
+      <button class="theme-btn" id="theme-btn" type="button" aria-label="Switch light or dark theme">Theme</button>
+    </div>
+  </header>
+  <main class="wrap" id="view" tabindex="-1"><p class="loading">Loading…</p></main>
+  <footer>
+    <div class="wrap">
+      Shechter Lab, Albert Einstein College of Medicine. <a href="https://github.com/Shechterlab/idr-explorer">Code and data</a>
+      (site, and idrkit, the sequence definitions); built from <a href="https://github.com/Shechterlab/PTM_Pipeline">PTM_Pipeline</a>
+      and the lab’s MicroDomains and glu_proteomics analyses. Residue-level methylarginine evidence is in the
+      <a href="https://shechterlab.github.io/PTM_Pipeline/">Methylarginine Site Explorer</a>. <span id="built"></span>
+    </div>
+  </footer>
+  <script src="assets/idr.js?v=20261027d" defer></script>
+</body>
+</html>
