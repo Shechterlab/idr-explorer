@@ -108,3 +108,10 @@ def test_modified_charge_and_shift():
     assert (K.modified_charge(seq, {0: "methyl"}) == K.charge_vector(seq)).all()
     with pytest.raises(ValueError):
         K.modified_charge(seq, {0: "phospho"})
+
+
+def test_charge_type_in_words():
+    from idrkit import charge_type, fcr, ncpr
+    for seq, want in (("EEEEEDDDDDAAAAAAAAAA", "acidic"), ("KKKKKRRRRRAAAAAAAAAA", "basic"), ("EKEKEKEKAAAAAAAAAAAA", "mixed"),
+                      ("EKAAAAAAAAAAAAAAAAAA", "few"), ("DDDDAAAAAAAAAAAAAAAA", "acidic")):
+        assert charge_type(fcr(seq), ncpr(seq)) == want, seq

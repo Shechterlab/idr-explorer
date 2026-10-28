@@ -7,16 +7,19 @@ The disordered regions of the reviewed human proteome, read two ways, with the m
 - **Domain flanks**: the residues beside every folded-domain edge (121,444; the window a domain-tethered IDR, or
   dtIDR, would occupy), scored from sequence for basic and for acidic character. The top tenth of each score are the
   **basic flanks** (arginine and lysine writers) and **acidic flanks** (CK2, glutamylases).
-- **Charge classes**: every IDR and flank in the Das–Pappu diagram of states, with κ and Ω, from localCIDER
-  (Holehouse et al. 2017), so a sequence can be described without any score of ours.
+- **Charge, in words**: every IDR and flank is acidic, basic, mixed or has few charges (net charge per residue, then
+  the share charged; `idrkit.charge_type`), and in the Das–Pappu diagram of states with plain names and the shape each
+  class predicts (localCIDER; Holehouse et al. 2017), with κ and Ω.
 
 The site is in [`docs/`](docs/) (GitHub Pages: `main`, folder `/docs`). Its Overview first asks whether a domain flank is a unit at
 all (read without a window, family by family for every InterPro entry, and by charge class), then where each
 modification that changes charge sits (acidic and basic flanks, blocky IDRs, acidic stretches, basic patches, RG/RGG
 clusters, kinase motifs, charge blocks, occupancy, protein classes); every test runs again in the browser on a
-selection of proteins and evidence. Sortable tables of every protein, flank and IDR (click a row to open it), a map of
-every protein in the Methylarginine Site Explorer's style (drag to zoom, click a site), and a Definitions page complete
-it. Methylarginine evidence at residue level is in the
+selection of proteins and evidence. Tables of every protein, flank, IDR and site, each under a plot that selects (hover
+a point, click to open it, drag to pick rows), and a page for every protein: its function (UniProt), what is unusual
+about it, a map with a read-out of every residue (sites, charge, IDRs, flanks, UniProt regions, RNA and DNA binding in
+cells, AlphaFold confidence), each charged segment with its sequence and what its modifications would do to its charge,
+its sites with their sources, and its AlphaFold model. Methylarginine evidence at residue level is in the
 [Methylarginine Site Explorer](https://shechterlab.github.io/PTM_Pipeline/).
 
 ## Code shared with the Methylarginine Site Explorer

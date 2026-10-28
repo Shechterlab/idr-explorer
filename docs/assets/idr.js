@@ -73,14 +73,26 @@
     return '<span class="z" style="background:color-mix(in srgb, var(--' + pole + ') ' + Math.round(a * 55) + '%, transparent)">' + fz(v) + '</span>';
   };
   const f3 = (v) => (v == null ? '' : (v / 1000).toFixed(3));
-  // Das & Pappu's diagram of states (PNAS 110:13392, 2013), the classes localCIDER assigns (get_phasePlotRegion)
-  const REGION = ['', 'Weak polyampholyte', 'Janus sequence', 'Strong polyampholyte', 'Strong polyelectrolyte, negative', 'Strong polyelectrolyte, positive'];
-  const REGION_SHORT = ['', 'R1 weak', 'R2 Janus', 'R3 polyampholyte', 'R4 negative', 'R5 positive'];
-  const REGION_DEF = ['', 'FCR below 0.25: few charges; compact globules or tadpoles', 'FCR 0.25–0.35: between compact and expanded, shaped by context',
-    'FCR above 0.35 with |NCPR| below 0.35: many charges of both signs; coils, hairpins or chimeras depending on how they are patterned (κ)',
-    'f− above 0.35 (net negative): swollen coils', 'f+ above 0.35 (net positive): swollen coils'];
-  const dpChip = (r) => (r ? '<span class="dp dp' + r + '" data-tip="' + esc('<b>' + REGION_SHORT[r] + '</b>: ' + REGION[r].toLowerCase() + '<br>' + REGION_DEF[r]) + '">R' + r + '</span>' : '<span class="muted">–</span>');
-  const dpChips = (bits) => [1, 2, 3, 4, 5].filter((r) => bits & (1 << (r - 1))).map(dpChip).join('') || '<span class="muted">–</span>';
+  // Das & Pappu's diagram of states (PNAS 110:13392, 2013), the classes localCIDER assigns (get_phasePlotRegion): the
+  // field's names, a plain name, and the shape each class predicts for a disordered chain
+  const REGION = ['', 'weak polyampholyte or polyelectrolyte', 'Janus sequence', 'strong polyampholyte', 'strong polyelectrolyte, negative', 'strong polyelectrolyte, positive'];
+  const REGION_SHORT = ['', 'R1 weakly charged', 'R2 in between', 'R3 strongly charged, mixed', 'R4 strongly negative', 'R5 strongly positive'];
+  const REGION_SHAPE = ['', 'compact (globule or tadpole)', 'compact or expanded, depending on context', 'coil or hairpin, depending on how + and − are mixed (κ)', 'expanded (swollen coil)', 'expanded (swollen coil)'];
+  const REGION_RULE = ['', 'fewer than a quarter of residues charged (FCR < 0.25)', 'a quarter to a third charged (FCR 0.25–0.35)', 'over a third charged, balanced (FCR > 0.35, |net| < 0.35)',
+    'over a third of residues negative (f− > 0.35)', 'over a third of residues positive (f+ > 0.35)'];
+  const REGION_DEF = REGION_RULE.map((r, k) => (k ? r + '; predicted shape: ' + REGION_SHAPE[k] : ''));
+  const dpTip = (r) => '<b>Das–Pappu ' + REGION_SHORT[r] + '</b><br>' + REGION[r] + ': ' + REGION_RULE[r] + '<br>Predicted shape: ' + REGION_SHAPE[r] + '<br><span class="muted">Das & Pappu 2013, as localCIDER assigns it</span>';
+  const dpChip = (r, short) => (r ? '<span class="dp dp' + r + '" data-tip="' + esc(dpTip(r)) + '">' + (short ? 'R' + r : esc(REGION_SHORT[r])) + '</span>' : '<span class="muted">–</span>');
+  const fsign = (v, d = 0) => (v == null || !Number.isFinite(v) ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d));
+  // Charge in words (idrkit.charge_type): net charge per residue first, then the share of residues charged.
+  const CT = ['', 'Few charges', 'Mixed charge', 'Acidic', 'Basic'];
+  const CT_DEF = ['', 'net charge between −0.10 and +0.10 per residue, and fewer than a quarter of residues charged', 'net charge between −0.10 and +0.10 per residue, with a quarter or more of residues charged (positive and negative balanced)',
+    'net charge −0.10 per residue or below (5 or more negative per 50 residues)', 'net charge +0.10 per residue or above (5 or more positive per 50 residues)'];
+  const ctOf = (fcr, ncpr) => (ncpr <= -0.1 ? 3 : ncpr >= 0.1 ? 4 : fcr >= 0.25 ? 2 : 1);
+  const ctChip = (t) => (t ? '<span class="ct ct' + t + '" data-tip="' + esc('<b>' + CT[t] + '</b>: ' + CT_DEF[t]) + '">' + CT[t] + '</span>' : '<span class="muted">–</span>');
+  // D/E (red) and K/R (blue) as bars over 0-50% of residues, and the net charge per residue
+  const chargeCell = (fm, fp, net, t) => '<span class="cbar" data-tip="' + esc((t ? '<b>' + CT[t] + '</b><br>' : '') + 'D/E ' + Math.round(100 * fm) + '% · K/R ' + Math.round(100 * fp) + '% of residues<br>net charge ' + fsign(net, 2) + ' per residue') + '"><i class="m" style="width:' + Math.min(100, 200 * fm).toFixed(0) + '%"></i><i class="p" style="width:' + Math.min(100, 200 * fp).toFixed(0) + '%"></i></span><span class="cnet">' + fsign(net, 2) + '</span>';
+  const dpChips = (bits) => [1, 2, 3, 4, 5].filter((r) => bits & (1 << (r - 1))).map((r) => dpChip(r, true)).join('') || '<span class="muted">–</span>';
 
   // ---------------------------------------------------------------- selection (the explorer's F and R)
   // Proteins: gene list, regions they have (all must hold), classes (any of those ticked). Evidence: the sources a site
@@ -184,7 +196,7 @@
     const token = ++routeToken;
     const { path, params } = parseHash();
     const [base, sub] = path.split('/');
-    const views = { overview: overviewView, proteins: proteinsView, flanks: flanksView, idrs: idrsView, definitions: definitionsView, about: aboutView };
+    const views = { overview: overviewView, proteins: proteinsView, flanks: flanksView, idrs: idrsView, sites: sitesView, definitions: definitionsView, about: aboutView };
     const v = view();
     v.innerHTML = '<p class="loading">Loading…</p>';
     C.hideTip();
@@ -285,53 +297,114 @@
   const tblState = (params, key, dir) => ({ key: params.get('sort') || key, dir: params.has('dir') ? +params.get('dir') : dir, n: +(params.get('n') || PAGE_MORE) });
   const tblParams = (p, st, key, dir) => { if (st.key !== key) p.set('sort', st.key); if (st.dir !== dir) p.set('dir', st.dir); if (st.n > PAGE_MORE) p.set('n', st.n); return p; };
 
-  // A binned density of two columns (all rows in grey, the selection in the accent), as SVG.
-  function density({ xs, ys, sel, xLabel, yLabel, xr, yr, bins = 56, bg, tick = 1, fmtT = (t) => t, over = '' }) {
-    const W = 420, H = 340, L = 46, Rm = 10, T = 10, Bm = 40, pw = W - L - Rm, ph = H - T - Bm;
-    const bx = (x) => Math.min(bins - 1, Math.max(0, Math.floor((x - xr[0]) / (xr[1] - xr[0]) * bins)));
-    const by = (y) => Math.min(bins - 1, Math.max(0, Math.floor((y - yr[0]) / (yr[1] - yr[0]) * bins)));
-    const grid = (idx) => { const g = new Uint32Array(bins * bins); for (const i of idx) { const x = xs[i], y = ys[i]; if (x == null || y == null) continue; g[by(y) * bins + bx(x)]++; } return g; };
-    const rect = (g, color, scale, what) => {
-      let max = 0; for (const v of g) if (v > max) max = v;
-      let out = '';
-      const cw = pw / bins, ch = ph / bins;
-      for (let k = 0; k < g.length; k++) {
-        if (!g[k]) continue;
-        const a = 0.12 + 0.88 * Math.log1p(g[k]) / Math.log1p(max || 1), gx = k % bins, gy = Math.floor(k / bins);
-        out += '<rect x="' + (L + gx * cw).toFixed(1) + '" y="' + (T + ph - (gy + 1) * ch).toFixed(1) + '" width="' + (cw + 0.3).toFixed(1) + '" height="' + (ch + 0.3).toFixed(1) +
-          '" style="fill:' + color + ';fill-opacity:' + (a * scale).toFixed(2) + '" data-tip="' + esc(fmt(g[k]) + ' ' + what) + '"/>';
-      }
-      return out;
+  // ---------------------------------------------------------------- a plot that selects
+  // Every row a point on a canvas: all rows faint, the rows that pass the filters coloured by a category, so 100k rows
+  // are seen at once. Hover a point: its row (and a ring); click: open it; drag: select a rectangle, which filters the
+  // table (and stays in the URL); double-click or Clear: drop it. o: { n, x(i), y(i), rows (passing the filters, box
+  // aside), inBox(i), cat(i) -> index into cats, cats: [[label, css colour var]], tip(i) -> html, onOpen(i),
+  // box: [x0, x1, y0, y1] | null, onBox(box | null), xLabel, yLabel, xFmt, yFmt, xLog, guides(ctx, X, Y, W, H) }
+  // while a plot or map is dragged, no text on the page is selected
+  const dragging = (on) => { document.body.classList.toggle('dragging', on); if (on) { try { window.getSelection().removeAllRanges(); } catch (e) { /* none */ } } };
+  function scatter(host, o) {
+    const W = Math.max(320, Math.round(host.clientWidth || 900)), H = Math.round(Math.min(440, Math.max(300, W * 0.42)));
+    const M = { l: 58, r: 16, t: 12, b: 44 }, dpr = window.devicePixelRatio || 1;
+    const fx = o.xLog ? (v) => Math.log10(Math.max(1, v)) : (v) => v;
+    // domain: all rows, the extremes trimmed (0.1% each side) so one outlier does not squash the rest
+    const span = (get, f) => {
+      const v = []; for (let i = 0; i < o.n; i++) { const a = get(i); if (a != null && Number.isFinite(a)) v.push(f(a)); }
+      v.sort((a, b) => a - b);
+      const lo = v[Math.floor(v.length * 0.001)], hi = v[Math.ceil(v.length * 0.999) - 1];
+      const pad = (hi - lo) * 0.04 || 1;
+      return [o.xMin0 && lo >= 0 ? Math.min(0, lo) : lo - pad, hi + pad];
     };
-    const sx = (x) => L + (x - xr[0]) / (xr[1] - xr[0]) * pw, sy = (y) => T + ph - (y - yr[0]) / (yr[1] - yr[0]) * ph;
-    const ticks = (r) => { const out = []; for (let t = Math.ceil(r[0] / tick - 1e-9) * tick; t <= r[1] + 1e-9; t += tick) out.push(+t.toFixed(6)); return out; };
-    let svg = '<svg class="plane" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(yLabel + ' against ' + xLabel) + '"><rect x="' + L + '" y="' + T + '" width="' + pw + '" height="' + ph + '" style="fill:var(--surface-2)"/>';
-    // a background by position (the classes of a diagram of states), cell by cell
-    if (bg) {
-      const cw = pw / bins, ch = ph / bins;
-      for (let gx = 0; gx < bins; gx++) for (let gy = 0; gy < bins; gy++) {
-        const c = bg(xr[0] + (gx + 0.5) / bins * (xr[1] - xr[0]), yr[0] + (gy + 0.5) / bins * (yr[1] - yr[0]));
-        if (c) svg += '<rect x="' + (L + gx * cw).toFixed(1) + '" y="' + (T + ph - (gy + 1) * ch).toFixed(1) + '" width="' + (cw + 0.3).toFixed(1) + '" height="' + (ch + 0.3).toFixed(1) + '" style="fill:' + c[0] + ';fill-opacity:0.16"' + (c[1] ? ' data-tip="' + esc(c[1]) + '"' : '') + '/>';
-      }
+    const xd = o.xDomain || span(o.x, fx), yd = o.yDomain || span(o.y, (v) => v);
+    const X = (v) => M.l + (fx(v) - xd[0]) / (xd[1] - xd[0]) * (W - M.l - M.r), Y = (v) => H - M.b - (v - yd[0]) / (yd[1] - yd[0]) * (H - M.t - M.b);
+    const invX = (px) => { const t = xd[0] + (px - M.l) / (W - M.l - M.r) * (xd[1] - xd[0]); return o.xLog ? 10 ** t : t; };
+    const invY = (py) => yd[0] + (H - M.b - py) / (H - M.t - M.b) * (yd[1] - yd[0]);
+    host.innerHTML = '<div class="sc"><canvas class="sc-base"></canvas><canvas class="sc-over"></canvas></div><div class="sc-key"></div>';
+    const [base, over] = $$('canvas', host);
+    for (const c of [base, over]) { c.width = W * dpr; c.height = H * dpr; c.style.width = W + 'px'; c.style.height = H + 'px'; }
+    const g = base.getContext('2d'), go = over.getContext('2d');
+    g.scale(dpr, dpr); go.scale(dpr, dpr);
+    const col = (v) => C.cssVar(v) || v, ink = col('--ink-2'), muted = col('--muted'), line = col('--line');
+    // axes and grid
+    const ticks = (d, log) => {
+      if (log) { const out = []; for (let e = Math.ceil(d[0]); e <= Math.floor(d[1]); e++) out.push(e); return out.map((e) => [e, 10 ** e]); }
+      const step = [0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000].find((s) => (d[1] - d[0]) / s <= 7) || 1000;
+      const out = []; for (let v = Math.ceil(d[0] / step) * step; v <= d[1] + 1e-9; v += step) out.push([+v.toFixed(6), +v.toFixed(6)]); return out;
+    };
+    g.font = '11px ' + (C.cssVar('--font-body') || 'sans-serif'); g.lineWidth = 1;
+    for (const [t, v] of ticks(xd, o.xLog)) { const px = M.l + (t - xd[0]) / (xd[1] - xd[0]) * (W - M.l - M.r); g.strokeStyle = line; g.beginPath(); g.moveTo(px, M.t); g.lineTo(px, H - M.b); g.stroke(); g.fillStyle = muted; g.textAlign = 'center'; g.fillText((o.xFmt || String)(v), px, H - M.b + 15); }
+    for (const [, v] of ticks(yd)) { const py = Y(v); g.strokeStyle = line; g.beginPath(); g.moveTo(M.l, py); g.lineTo(W - M.r, py); g.stroke(); g.fillStyle = muted; g.textAlign = 'right'; g.fillText((o.yFmt || String)(v), M.l - 6, py + 4); }
+    g.fillStyle = ink; g.textAlign = 'center'; g.font = '12px ' + (C.cssVar('--font-body') || 'sans-serif');
+    g.fillText(o.xLabel, (M.l + W - M.r) / 2, H - 8);
+    g.save(); g.translate(14, (M.t + H - M.b) / 2); g.rotate(-Math.PI / 2); g.fillText(o.yLabel, 0, 0); g.restore();
+    g.save(); g.beginPath(); g.rect(M.l, M.t, W - M.l - M.r, H - M.t - M.b); g.clip();
+    if (o.guides) o.guides(g, X, Y, W, H, M);
+    // every row, faint
+    g.fillStyle = muted; g.globalAlpha = o.n > 50000 ? 0.12 : 0.2;
+    for (let i = 0; i < o.n; i++) { const a = o.x(i), b = o.y(i); if (a == null || b == null) continue; g.fillRect(X(a) - 1, Y(b) - 1, 2, 2); }
+    // the rows that pass, in their category's colour; a jitter of a third of a pixel keeps lattice values from one dot
+    const shown = o.rows.filter((i) => !o.inBox || o.inBox(i)), big = shown.length > 20000, r = big ? 1.4 : shown.length > 3000 ? 2 : 2.8;
+    const cols = o.cats.map((c) => col(c[1])), counts = o.cats.map(() => 0);
+    g.globalAlpha = big ? 0.35 : shown.length > 3000 ? 0.55 : 0.8;
+    const grid = new Map(), cell = 8;
+    for (const i of shown) {
+      const a = o.x(i), b = o.y(i);
+      if (a == null || b == null) continue;
+      const k = o.cat(i), px = X(a), py = Y(b);
+      counts[k]++;
+      g.fillStyle = cols[k];
+      g.beginPath(); g.arc(px, py, r, 0, 6.283); g.fill();
+      const key = Math.floor(px / cell) + ',' + Math.floor(py / cell);
+      if (!grid.has(key)) grid.set(key, []);
+      grid.get(key).push(i);
     }
-    svg += rect(grid(xs.keys()), 'var(--muted)', sel ? 0.55 : 1, 'rows');
-    if (sel) svg += rect(grid(sel), 'var(--accent)', 1, 'selected rows');
-    for (const t of ticks(xr)) svg += '<line x1="' + sx(t) + '" x2="' + sx(t) + '" y1="' + (T + ph) + '" y2="' + (T + ph + 4) + '" style="stroke:var(--muted)"/><text x="' + sx(t) + '" y="' + (T + ph + 16) + '" text-anchor="middle" font-size="12">' + fmtT(t) + '</text>';
-    for (const t of ticks(yr)) svg += '<line x1="' + (L - 4) + '" x2="' + L + '" y1="' + sy(t) + '" y2="' + sy(t) + '" style="stroke:var(--muted)"/><text x="' + (L - 7) + '" y="' + (sy(t) + 4) + '" text-anchor="end" font-size="12">' + fmtT(t) + '</text>';
-    if (over) svg += over(sx, sy);
-    if (xr[0] < 0 && xr[1] > 0) svg += '<line x1="' + sx(0) + '" x2="' + sx(0) + '" y1="' + T + '" y2="' + (T + ph) + '" style="stroke:var(--line-strong);stroke-dasharray:3 3"/>';
-    if (yr[0] < 0 && yr[1] > 0) svg += '<line x1="' + L + '" x2="' + (L + pw) + '" y1="' + sy(0) + '" y2="' + sy(0) + '" style="stroke:var(--line-strong);stroke-dasharray:3 3"/>';
-    svg += '<text x="' + (L + pw / 2) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="12">' + esc(xLabel) + '</text><text transform="translate(14 ' + (T + ph / 2) + ') rotate(-90)" text-anchor="middle" font-size="12">' + esc(yLabel) + '</text>';
-    return svg + '</svg>';
-  }
-
-  // The Das–Pappu diagram of states for the IDRs: f− across, f+ up, each class tinted, the IDRs as a binned density.
-  const dpRegion = (fm, fp) => { const fcr = fm + fp; return fcr < 0.25 ? 1 : fcr <= 0.35 ? 2 : Math.abs(fp - fm) < 0.35 ? 3 : fp > 0.35 ? 5 : 4; };
-  function dpPlane(sel) {
-    const xs = ID.fde.map((v) => v / 1000), ys = ID.frk.map((v) => v / 1000);
-    const lab = (sx, sy) => [[1, 0.06, 0.06], [2, 0.2, 0.1], [3, 0.3, 0.3], [4, 0.6, 0.06], [5, 0.06, 0.6]].map(([r, x, y]) => '<text x="' + sx(x).toFixed(1) + '" y="' + sy(y).toFixed(1) + '" font-size="12" font-weight="700" style="fill:var(--ink-2)">R' + r + '</text>').join('');
-    return density({ xs, ys, sel, xLabel: 'f−, fraction of D and E', yLabel: 'f+, fraction of K and R', xr: [0, 0.8], yr: [0, 0.8], bins: 64, tick: 0.2, fmtT: (t) => t.toFixed(1),
-      bg: (x, y) => { const r = dpRegion(x, y); return [C.cssVar('--dp' + r), REGION_SHORT[r] + ': ' + REGION_DEF[r]]; }, over: lab });
+    g.restore(); g.globalAlpha = 1;
+    if (o.box) { const [x0, x1, y0, y1] = o.box; g.strokeStyle = col('--accent'); g.setLineDash([4, 3]); g.strokeRect(X(x0), Y(y1), X(x1) - X(x0), Y(y0) - Y(y1)); g.setLineDash([]); }
+    $('.sc-key', host).innerHTML = o.cats.map((c, k) => '<span><i style="background:' + cols[k] + '"></i>' + esc(c[0]) + ' <b>' + fmt(counts[k]) + '</b></span>').join('') +
+      '<span class="muted">grey: all ' + fmt(o.n) + ' · drag to select, click a point to open it' + (o.box ? ' · <button class="linkish" type="button" data-clear>clear the selection</button>' : '') + '</span>';
+    const clear = $('[data-clear]', host);
+    if (clear) clear.addEventListener('click', () => o.onBox(null));
+    // hover, click, drag
+    const near = (px, py) => {
+      let best = null, bd = 100;
+      const cx = Math.floor(px / cell), cy = Math.floor(py / cell);
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const i of grid.get((cx + dx) + ',' + (cy + dy)) || []) {
+        const d = (X(o.x(i)) - px) ** 2 + (Y(o.y(i)) - py) ** 2;
+        if (d < bd) { bd = d; best = i; }
+      }
+      return best;
+    };
+    const at = (e) => { const b = over.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
+    let start = null, hover = null;
+    const ring = (i) => { go.clearRect(0, 0, W, H); if (i == null) return; go.strokeStyle = col('--ink'); go.lineWidth = 2; go.beginPath(); go.arc(X(o.x(i)), Y(o.y(i)), r + 4, 0, 6.283); go.stroke(); };
+    over.addEventListener('pointerdown', (e) => { if (e.button !== 0) return; e.preventDefault(); dragging(true); start = at(e); over.setPointerCapture(e.pointerId); });
+    over.addEventListener('pointermove', (e) => {
+      const [px, py] = at(e);
+      if (start && Math.abs(px - start[0]) + Math.abs(py - start[1]) > 4) {
+        C.hideTip(); go.clearRect(0, 0, W, H);
+        go.fillStyle = col('--accent'); go.globalAlpha = 0.12; go.fillRect(Math.min(px, start[0]), Math.min(py, start[1]), Math.abs(px - start[0]), Math.abs(py - start[1])); go.globalAlpha = 1;
+        go.strokeStyle = col('--accent'); go.strokeRect(Math.min(px, start[0]), Math.min(py, start[1]), Math.abs(px - start[0]), Math.abs(py - start[1]));
+        return;
+      }
+      hover = near(px, py);
+      ring(hover);
+      over.style.cursor = hover == null ? 'crosshair' : 'pointer';
+      if (hover == null) C.hideTip(); else C.showTip(e, o.tip(hover) + '<br><span class="muted">Click to open</span>');
+    });
+    over.addEventListener('pointerleave', () => { ring(null); C.hideTip(); });
+    over.addEventListener('pointerup', (e) => {
+      dragging(false);
+      if (!start) return;
+      const [px, py] = at(e), [sx, sy] = start;
+      start = null;
+      if (Math.abs(px - sx) + Math.abs(py - sy) > 4) {
+        const xs = [invX(Math.min(px, sx)), invX(Math.max(px, sx))], ys = [invY(Math.max(py, sy)), invY(Math.min(py, sy))];
+        o.onBox([xs[0], xs[1], ys[0], ys[1]].map((v) => +v.toPrecision(4)));
+      } else if (hover != null) { C.hideTip(); o.onOpen(hover); }
+    });
+    over.addEventListener('dblclick', () => { if (o.box) o.onBox(null); });
   }
 
   // Horizontal box plots from quantiles [5th, 25th, median, 75th, 95th percentile, n] (the explorer's dmBoxSvg layout):
@@ -646,69 +719,92 @@
       '<span class="fm-l">' + esc(r.name.replace(/ domain$/, '')) + '</span><span class="fm-t"><i class="' + (r.basic_proximal > 0 ? 'b' : 'a') + '" style="width:' + (100 * Math.abs(r.basic_proximal) / mx).toFixed(1) + '%"></i></span><span class="fm-v">' + pts(r.basic_proximal) + '</span></div>').join('') + '</div>';
   }
 
-  // ---------------------------------------------------------------- Das–Pappu classes of IDRs and flanks (localCIDER)
-  // Groups of IDRs by what they touch; recomputed from idrs.json for a selection of proteins. Flank windows: whole only.
-  const DP_GROUPS = [['all', 'All IDRs'], ['acidic', 'IDRs at an acidic flank'], ['basic', 'IDRs at a basic flank'], ['flank', 'IDRs at any domain flank'], ['none', 'IDRs away from domain flanks']];
-  function ciderGroups() {
+  // ---------------------------------------------------------------- how are IDRs and flanks charged? (idrkit.charge_type)
+  // Groups of IDRs by what they touch, and flank windows; recomputed from idrs.json for a selection of proteins.
+  const CT_GROUP = { all: 'All IDRs', acidic: 'IDRs at an acidic flank', basic: 'IDRs at a basic flank', flank: 'IDRs at any domain flank', none: 'IDRs away from domain flanks',
+    fl_all: 'All flank windows', fl_acidic: 'Acidic flank windows', fl_basic: 'Basic flank windows' };
+  const CT_SHOW = [3, 4, 2, 1];   // acidic, basic, mixed, few: the order of every stack
+  function ctGroups() {
     const prots = R.sel && R.sel.prots;
-    if (!prots || !ID) return { groups: OV.cider.idr_groups.map((g) => ({ key: g[0], label: g[1], n: g[2], kq: g[3] })), whole: true };
-    const cnt = Object.fromEntries(DP_GROUPS.map(([k]) => [k, [0, 0, 0, 0, 0]])), kap = Object.fromEntries(DP_GROUPS.map(([k]) => [k, []]));
+    if (!prots || !ID) return { groups: OV.charge_types.idr_groups.map(([k, n]) => ({ key: k, label: CT_GROUP[k], n })), whole: true };
+    const cnt = Object.fromEntries(Object.keys(CT_GROUP).slice(0, 5).map((k) => [k, [0, 0, 0, 0]]));
     for (let i = 0; i < ID.p.length; i++) {
       if (!prots.has(ID.p[i])) continue;
-      const r = (ID.reg[i] || 1) - 1, ks = ['all', ID.top[i] & 1 ? 'acidic' : null, ID.top[i] & 2 ? 'basic' : null, ID.zb[i] != null ? 'flank' : 'none'].filter(Boolean);
-      for (const k of ks) { cnt[k][r]++; if (ID.kap[i] != null) kap[k].push(ID.kap[i] / 1000); }
+      for (const k of ['all', ID.top[i] & 1 ? 'acidic' : null, ID.top[i] & 2 ? 'basic' : null, ID.zb[i] != null ? 'flank' : 'none'].filter(Boolean)) cnt[k][ID.ct[i] - 1]++;
     }
-    const q = (v) => { if (!v.length) return null; v.sort((a, b) => a - b); const at = (f) => v[Math.min(v.length - 1, Math.floor(f * (v.length - 1)))]; return [at(0.05), at(0.25), at(0.5), at(0.75), at(0.95), v.length]; };
-    return { groups: DP_GROUPS.map(([k, l]) => ({ key: k, label: l, n: cnt[k], kq: q(kap[k]) })), whole: false };
+    return { groups: Object.keys(cnt).map((k) => ({ key: k, label: CT_GROUP[k], n: cnt[k] })), whole: false };
   }
-  function dpStackSvg(groups, o = {}) {
-    const W = o.W || 780, ML = o.ML || 240, RH = o.compact ? 16 : 26, T = 4, H = T + groups.length * RH + (o.compact ? 2 : 26), bw = W - ML - 8;
+  // one stacked bar per group, with direct percentages: by default the charge words (acidic, basic, mixed, few), or any
+  // categories (o.cats: [[index into n, label, css class, definition]])
+  function ctStackSvg(groups, o = {}) {
+    const cats = o.cats || CT_SHOW.map((t) => [t - 1, CT[t], 'cs' + t, CT_DEF[t]]);
+    const W = o.W || 780, ML = o.ML || 240, RH = o.compact ? 16 : 26, T = 4, bw = W - ML - 8;
+    // the key wraps onto as many lines as the width needs
+    const keyAt = [];
+    let lx = ML, ly = 0;
+    for (const [, lab] of o.compact ? [] : cats) { const w = 30 + C.textW(lab, 11); if (lx > ML && lx + w > W) { lx = ML; ly++; } keyAt.push([lx, ly]); lx += w; }
+    const H = T + groups.length * RH + (o.compact ? 2 : 12 + (ly + 1) * 16);
     let g = '';
     groups.forEach((gr, k) => {
       const tot = gr.n.reduce((a, b) => a + b, 0) || 1, y = T + k * RH;
-      g += '<text class="dp-lab" x="' + (ML - 8) + '" y="' + (y + RH / 2 + 4) + '" text-anchor="end">' + esc(gr.label) + (o.compact ? '' : ' (' + fmt(tot) + ')') + '</text>';
+      g += '<text class="ct-lab" x="' + (ML - 8) + '" y="' + (y + RH / 2 + 4) + '" text-anchor="end">' + esc(gr.label) + (o.compact ? '' : ' (' + fmt(tot) + ')') + '</text>';
       let x = ML;
-      gr.n.forEach((c, r) => {
-        if (!c) return;
+      for (const [j, lab, cls, def] of cats) {
+        const c = gr.n[j];
+        if (!c) continue;
         const w = bw * c / tot;
-        g += '<rect class="dp-seg dp' + (r + 1) + '" x="' + x.toFixed(1) + '" y="' + (y + 3) + '" width="' + Math.max(0.5, w - 1.5).toFixed(1) + '" height="' + (RH - 6) + '" rx="2" data-tip="' + esc('<b>' + esc(gr.label) + '</b><br>' + REGION_SHORT[r + 1] + ': ' + fmt(c) + ' of ' + fmt(tot) + ' (' + (100 * c / tot).toFixed(1) + '%)<br>' + REGION_DEF[r + 1]) + '"/>';
-        if (!o.compact && w > 34) g += '<text class="dp-in inv' + '" x="' + (x + 4).toFixed(1) + '" y="' + (y + RH / 2 + 4) + '">' + Math.round(100 * c / tot) + '%</text>';
+        g += '<rect class="ct-seg ' + cls + '" x="' + x.toFixed(1) + '" y="' + (y + 3) + '" width="' + Math.max(0.5, w - 1.5).toFixed(1) + '" height="' + (RH - 6) + '" rx="2" data-tip="' + esc('<b>' + esc(gr.label) + '</b><br>' + esc(lab) + ': ' + fmt(c) + ' of ' + fmt(tot) + ' (' + (100 * c / tot).toFixed(1) + '%)<br>' + esc(def)) + '"/>';
+        if (!o.compact && w > 34) g += '<text class="ct-in inv" x="' + (x + 4).toFixed(1) + '" y="' + (y + RH / 2 + 4) + '">' + Math.round(100 * c / tot) + '%</text>';
         x += w;
-      });
+      }
     });
-    if (!o.compact) {
-      let lx = ML;
-      for (const r of [1, 2, 3, 4, 5]) { g += '<rect class="dp-seg dp' + r + '" x="' + lx.toFixed(1) + '" y="' + (H - 16) + '" width="12" height="10" rx="2"/><text class="dp-lab" x="' + (lx + 16).toFixed(1) + '" y="' + (H - 7) + '">' + REGION_SHORT[r] + '</text>'; lx += 34 + C.textW(REGION_SHORT[r], 11); }
-    }
-    return '<svg class="dp-plot' + (o.compact ? ' compact' : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Das–Pappu classes by group">' + g + '</svg>';
+    cats.forEach(([, lab, cls], k) => { if (o.compact) return; const [x, l] = keyAt[k], y = T + groups.length * RH + 10 + l * 16; g += '<rect class="ct-seg ' + cls + '" x="' + x.toFixed(1) + '" y="' + y + '" width="12" height="10" rx="2"/><text class="ct-lab" x="' + (x + 16).toFixed(1) + '" y="' + (y + 9) + '">' + esc(lab) + '</text>'; });
+    return '<svg class="ct-plot' + (o.compact ? ' compact' : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.aria || 'Charge of IDRs and flanks by group') + '">' + g + '</svg>';
   }
-  const DP_CSS = (pal) => '.dp-lab{font-size:11px;fill:' + pal.ink + '}.dp-in{font-size:10px;fill:' + pal.ink + '}.dp-in.inv{fill:#fff}' + [1, 2, 3, 4, 5].map((r) => '.dp' + r + '{fill:' + TRACK_LIGHT['dp' + r] + '}').join('');
-  function ciderSpec() {
-    const cg = ciderGroups(), G = cg.groups, fl = OV.cider.flank_groups.map((g) => ({ key: g[0], label: g[1], n: g[2], kq: g[3] }));
-    const show = G.concat(cg.whole ? fl : []);
-    return { id: 'ch-cider', title: 'Das–Pappu classes of IDRs and domain flanks', rows: [], figSvg: () => dpStackSvg(show), figCss: DP_CSS, meta: cg,
-      subHtml: 'Each IDR (and each 50-residue flank window) in the class of the diagram of states its charges put it in (Das & Pappu 2013, as localCIDER assigns it): R1 weak polyampholytes (FCR < 0.25), R2 Janus sequences, R3 strong polyampholytes, R4 and R5 strong polyelectrolytes, negative and positive.' + (cg.whole ? '' : ' Your proteins’ IDRs; flank windows are shown for the whole dataset only.') + docLink('cider'),
-      subText: 'Das-Pappu diagram-of-states class of each IDR and flank window (localCIDER): R1 FCR<0.25, R2 0.25-0.35, R3 FCR>0.35 and |NCPR|<0.35, R4 f->0.35, R5 f+>0.35.',
-      figTsv: () => '# Das-Pappu classes' + (cg.whole ? '' : ' · selection: ' + selectionText()) + '\ngroup\tR1\tR2\tR3\tR4\tR5\n' + show.map((g) => [g.label].concat(g.n).join('\t')).join('\n') + '\n' };
+  const CT_CSS = (pal) => '.ct-lab{font-size:11px;fill:' + pal.ink + '}.ct-in{font-size:10px;fill:' + pal.ink + '}.ct-in.inv{fill:#fff}.cs1{fill:#8A979F}.cs2{fill:' + TRACK_LIGHT.hybrid + '}.cs3{fill:' + TRACK_LIGHT.acidic + '}.cs4{fill:' + TRACK_LIGHT.basic + '}' +
+    [['#8A979F'], ['#C98500'], ['#8E44AD'], ['#D64545'], ['#2F6FD6']].map(([c], k) => '.ds' + (k + 1) + '{fill:' + c + '}').join('');
+  // the same groups in Das & Pappu's classes (localCIDER), the field's standard, with their predicted shapes
+  function dpSpec() {
+    const DPG = { all: 'All IDRs', acidic: 'IDRs at an acidic flank', basic: 'IDRs at a basic flank', flank: 'IDRs at any domain flank', none: 'IDRs away from domain flanks', fl_all: 'All flank windows', fl_acidic: 'Acidic flank windows', fl_basic: 'Basic flank windows' };
+    const prots = R.sel && R.sel.prots;
+    let groups = OV.cider.idr_groups.map((g) => ({ key: g[0], label: DPG[g[0]], n: g[2] }));
+    if (prots && ID) {
+      const cnt = Object.fromEntries(['all', 'acidic', 'basic', 'flank', 'none'].map((k) => [k, [0, 0, 0, 0, 0]]));
+      for (let i = 0; i < ID.p.length; i++) if (prots.has(ID.p[i])) for (const k of ['all', ID.top[i] & 1 ? 'acidic' : null, ID.top[i] & 2 ? 'basic' : null, ID.zb[i] != null ? 'flank' : 'none'].filter(Boolean)) cnt[k][(ID.reg[i] || 1) - 1]++;
+      groups = Object.keys(cnt).map((k) => ({ key: k, label: DPG[k], n: cnt[k] }));
+    } else groups = groups.concat(OV.cider.flank_groups.map((g) => ({ key: g[0], label: DPG[g[0]], n: g[2] })));
+    const cats = [1, 2, 3, 4, 5].map((r) => [r - 1, REGION_SHORT[r], 'ds' + r, REGION[r] + ': ' + REGION_RULE[r] + '; predicted shape ' + REGION_SHAPE[r]]);
+    return { id: 'ch-dp', title: 'Das–Pappu classes of IDRs and flank windows', rows: [], figSvg: () => ctStackSvg(groups, { cats, aria: 'Das–Pappu classes by group' }), figCss: CT_CSS,
+      subHtml: 'The same groups in the five classes of Das & Pappu’s diagram of states (localCIDER), named in plain words: R1 weakly charged chains are compact, R4 and R5 strongly charged ones of one sign expand, R3 mixed ones fold back or not depending on how their charges are mixed (κ), R2 lies between. Hover a segment for the rule.' + docLink('cider'),
+      subText: 'Das-Pappu diagram-of-states class (localCIDER) of each IDR and flank window: R1 FCR<0.25, R2 0.25-0.35, R3 FCR>0.35 and |NCPR|<0.35, R4 f->0.35, R5 f+>0.35.',
+      figTsv: () => '# Das-Pappu classes' + (prots ? ' · selection: ' + selectionText() : '') + '\ngroup\tR1\tR2\tR3\tR4\tR5\n' + groups.map((g) => [g.label].concat(g.n).join('\t')).join('\n') + '\n' };
   }
-  // per class: IDRs at an acidic (basic) flank against the other IDRs, pooled Fisher, BH across the classes
-  function ciderTestSpec() {
-    const cg = ciderGroups(), get = (k) => cg.groups.find((g) => g.key === k).n, all = get('all');
+  function ctSpec() {
+    const cg = ctGroups(), fl = OV.charge_types.flank_groups.map(([k, n]) => ({ key: k, label: CT_GROUP[k], n }));
+    const show = cg.groups.concat(cg.whole ? fl : []);
+    return { id: 'ch-ctype', title: 'Charge of IDRs and flank windows', rows: [], figSvg: () => ctStackSvg(show), figCss: CT_CSS, meta: cg,
+      subHtml: 'Each IDR (and each 50-residue flank window) in words: <b>acidic</b> at a net charge of −0.10 per residue or below, <b>basic</b> at +0.10 or above; otherwise <b>mixed</b> when a quarter or more of its residues are charged, <b>few charges</b> when fewer.' + (cg.whole ? '' : ' Your proteins’ IDRs; flank windows for the whole dataset only.') + docLink('ctype'),
+      subText: 'Charge type of each IDR and flank window: acidic (net charge per residue <= -0.10), basic (>= +0.10), mixed (fraction charged >= 0.25), few charges.',
+      figTsv: () => '# Charge types' + (cg.whole ? '' : ' · selection: ' + selectionText()) + '\ngroup\tacidic\tbasic\tmixed\tfew\n' + show.map((g) => [g.label].concat(CT_SHOW.map((t) => g.n[t - 1])).join('\t')).join('\n') + '\n' };
+  }
+  // per type: IDRs at an acidic (basic) flank against the other IDRs, pooled Fisher, BH across the types
+  function ctTestSpec() {
+    const cg = ctGroups(), get = (k) => cg.groups.find((g) => g.key === k).n, all = get('all');
     const rows = [];
     for (const [k, head] of [['acidic', 'IDRs at an acidic flank'], ['basic', 'IDRs at a basic flank']]) {
       const inn = get(k), ti = inn.reduce((a, b) => a + b, 0), ta = all.reduce((a, b) => a + b, 0), sub = [];
-      for (let r = 0; r < 5; r++) {
-        const a = inn[r], b = ti - a, c = all[r] - a, d = ta - ti - c, oc = C.oddsCi(a, b, c, d);
-        sub.push({ key: k + r, head: r ? null : head, label: REGION_SHORT[r + 1], value: oc.or ? +Math.log2(oc.or).toFixed(3) : null, p: C.fisherP(a, b, c, d), extra: fmt(a) + '/' + fmt(ti), oc,
-          title: '<b>' + esc(head) + ': ' + REGION_SHORT[r + 1] + '</b><br>' + fmt(a) + ' of ' + fmt(ti) + ' (' + (100 * a / (ti || 1)).toFixed(1) + '%) against ' + fmt(c) + ' of ' + fmt(ta - ti) + ' other IDRs (' + (100 * c / ((ta - ti) || 1)).toFixed(1) + '%)<br>OR ' + C.fmtOr(oc.or, oc.lo, oc.hi) });
+      for (const t of CT_SHOW) {
+        const a = inn[t - 1], b = ti - a, c = all[t - 1] - a, d = ta - ti - c, oc = C.oddsCi(a, b, c, d);
+        sub.push({ key: k + t, head: sub.length ? null : head, label: CT[t], value: oc.or ? +Math.log2(oc.or).toFixed(3) : null, p: C.fisherP(a, b, c, d), extra: fmt(a) + '/' + fmt(ti), oc,
+          title: '<b>' + esc(head) + ': ' + CT[t].toLowerCase() + '</b><br>' + fmt(a) + ' of ' + fmt(ti) + ' (' + (100 * a / (ti || 1)).toFixed(1) + '%) against ' + fmt(c) + ' of ' + fmt(ta - ti) + ' other IDRs (' + (100 * c / ((ta - ti) || 1)).toFixed(1) + '%)<br>OR ' + C.fmtOr(oc.or, oc.lo, oc.hi) });
       }
       C.bhAdjust(sub, (x) => x.p);
       for (const x of sub) { x.sig = SIG(x.q); x.title += ', Fisher q ' + fmtP(x.q); x.main = { or: x.oc.or, lo: x.oc.lo, hi: x.oc.hi, q: x.q, sig: x.sig }; }
       rows.push(...sub);
     }
-    return { id: 'ch-cider-test', title: 'Das–Pappu classes at acidic and basic flanks', rows, keepOrder: true, extraCol: true, heads: ['Class', 'IDRs', '', 'log2 OR'],
-      subHtml: 'IDRs overlapping an acidic (basic) flank against all other IDRs' + (cg.whole ? '' : ' of your proteins') + ': the odds of each class. Pooled Fisher test (IDRs, not proteins, are the unit here), BH across the classes. The flank scores read charge from the same residues, so R4 at acidic and R5 at basic flanks are expected; the other classes are the information.' + docLink('cider'),
-      subText: 'IDRs overlapping an acidic (basic) flank against all other IDRs: odds of each Das-Pappu class, pooled Fisher, BH.', axis: 'log2 odds ratio vs other IDRs', valueLabel: 'log2_odds_ratio' };
+    return { id: 'ch-ctype-test', title: 'Charge of the IDRs at acidic and basic flanks', rows, keepOrder: true, extraCol: true, heads: ['Charge', 'IDRs', '', 'log2 OR'],
+      subHtml: 'IDRs overlapping an acidic (basic) flank against all other IDRs' + (cg.whole ? '' : ' of your proteins') + ': the odds of each charge type. Pooled Fisher test (IDRs are the unit), BH across the types. The flank scores read charge from the same residues, so acidic IDRs at acidic flanks are expected; the size of the rest is the information.' + docLink('ctype'),
+      subText: 'IDRs overlapping an acidic (basic) flank against all other IDRs: odds of each charge type, pooled Fisher, BH.', axis: 'log2 odds ratio vs other IDRs', valueLabel: 'log2_odds_ratio' };
   }
 
   // ---------------------------------------------------------------- Overview
@@ -716,7 +812,7 @@
   const TILES = [
     ['agnostic', 'Is a domain flank a unit?', 'Is the sequence beside a folded domain different from the rest of its IDR?'],
     ['families', 'Is a domain flank a unit?', 'Which domain families have a charged extension, and how long is it?'],
-    ['cider', 'Is a domain flank a unit?', 'What kinds of charged chain are IDRs and flanks?'],
+    ['ctype', 'Is a domain flank a unit?', 'How charged are IDRs and the flanks of domains?'],
     ['acidic_flank', 'Domain flanks', 'Which modifications sit in acidic flanks?'], ['basic_flank', 'Domain flanks', 'Which modifications sit in basic flanks?'], ['flank', 'Domain flanks', 'Which modifications sit beside a folded domain?'],
     ['blocky', 'Charge patterning', 'Which modifications sit in IDRs with charge blocks?'], ['charge', 'Charge patterning', 'Do modifications sharpen or soften charge blocks?'],
     ['acidic_stretch', 'Sequence elements', 'Which modifications sit in acidic stretches?'], ['basic_patch', 'Sequence elements', 'Which modifications sit in basic patches?'], ['rg_cluster', 'Sequence elements', 'Which modifications sit in RG/RGG clusters?'],
@@ -725,7 +821,7 @@
     ['kin', 'Writers and occupancy', 'Which kinases’ motifs do the phosphosites of each flank match?'], ['occupancy', 'Writers and occupancy', 'Are sites in acidic or basic flanks more fully modified?'],
     ['classes', 'Proteins and partners', 'What kinds of protein have acidic or basic flanks?'], ['crosstalk', 'Proteins and partners', 'Are arginines next to phosphosites methylated?'], ['partners', 'Proteins and partners', 'Do acidic- and basic-flank proteins bind each other?'],
   ];
-  const TILE_TITLE = { agnostic: 'Flank profiles', families: 'Domain families', cider: 'Charge classes (Das–Pappu)', kin: 'Kinase motifs', charge: 'Charge blocks after modification', occupancy: 'Occupancy', classes: 'Protein classes', crosstalk: 'Phospho–methyl crosstalk', partners: 'Partners' };
+  const TILE_TITLE = { agnostic: 'Flank profiles', families: 'Domain families', ctype: 'Charge of IDRs and flanks', kin: 'Kinase motifs', charge: 'Charge blocks after modification', occupancy: 'Occupancy', classes: 'Protein classes', crosstalk: 'Phospho–methyl crosstalk', partners: 'Partners' };
   const tileTitle = (key) => (CTX_ORDER().includes(key) ? ctxLabel(key) + (key.endsWith('flank') || key === 'flank' ? 's' : '') : TILE_TITLE[key]);
   const tileRows = (rows, n = 6) => {
     const ok = rows.filter((r) => r.value != null && r.main && r.main.or);
@@ -760,7 +856,7 @@
     if (key === 'occupancy') { const occ = stoichSpec('occ'), ac = stoichSpec('ac'); return { spec: occ, spec2: ac, occupancy: true }; }
     if (key === 'agnostic') return { spec: agSpec(UI.agMeasure || 'basic'), agnostic: true, whole: true };
     if (key === 'families') return { spec: familySpec(UI.famRef || 'idr', UI.famSide || 'both', UI.famMeasure || 'basic'), families: true, whole: true };
-    if (key === 'cider') { const spec = ciderSpec(); return { spec, spec2: ciderTestSpec(), cider: true, rows: [] }; }
+    if (key === 'ctype') { const spec = ctSpec(); return { spec, spec2: dpSpec(), spec3: ctTestSpec(), ctype: true, rows: [] }; }
     return null;
   }
   function tileOf(key, sec) {
@@ -774,11 +870,11 @@
       const both = famRows('idr', 'both'), up = both.filter((r) => SIG(r.basic_proximal_q) && r.basic_proximal > 0), ac = both.filter((r) => SIG(r.acidic_proximal_q) && r.acidic_proximal > 0);
       return { vis: famMini(), head: fmt(up.length) + ' of ' + fmt(both.length) + ' families carry a basic extension (DNA-binding folds first); ' + (ac.length ? fmt(ac.length) + ' an acidic one' : '<b>none</b> an acidic one') };
     }
-    if (sec.cider) {
-      const G = sec.spec.meta.groups, sh = (k, r) => { const g = G.find((x) => x.key === k); const t = g.n.reduce((a, b) => a + b, 0) || 1; return Math.round(100 * g.n[r - 1] / t); };
+    if (sec.ctype) {
+      const G = sec.spec.meta.groups, sh = (k, t) => { const g = G.find((x) => x.key === k); const n = g.n.reduce((a, b) => a + b, 0) || 1; return Math.round(100 * g.n[t - 1] / n); };
       const short = { all: 'All IDRs', acidic: 'At acidic flanks', basic: 'At basic flanks' };
-      return { vis: dpStackSvg(G.filter((g) => short[g.key]).map((g) => Object.assign({}, g, { label: short[g.key] })), { compact: true, W: 300, ML: 92 }),
-        head: 'IDRs at acidic flanks are mostly mixed-charge chains (R2–R3: ' + (sh('acidic', 2) + sh('acidic', 3)) + '%), rarely negative polyelectrolytes (R4: ' + sh('acidic', 4) + '%); all IDRs: R1 ' + sh('all', 1) + '%' };
+      return { vis: ctStackSvg(G.filter((g) => short[g.key]).map((g) => Object.assign({}, g, { label: short[g.key] })), { compact: true, W: 300, ML: 92 }),
+        head: 'Acidic: <b>' + sh('acidic', 3) + '%</b> of IDRs at acidic flanks, ' + sh('all', 3) + '% of all IDRs; basic: ' + sh('basic', 4) + '% at basic flanks, ' + sh('all', 4) + '% of all' };
     }
     if (sec.occupancy) {
       const rows = sec.spec.meta, mx = Math.max(...rows.map((r) => (r.x.median_in || 0)), ...rows.map((r) => r.x.median_out || 0));
@@ -829,7 +925,7 @@
     if (token !== routeToken) return;
     UI.charts = {};
     if (sub === 'families') { await loadFam(); if (token !== routeToken) return; }
-    if (sub === 'cider' && R.sel && R.sel.prots) await loadIdrs();
+    if (sub === 'ctype' && R.sel && R.sel.prots) await loadIdrs();
     if (sub) { sectionView(sub); return; }
     C.A_ROWS.length = 0;
     const ov = {};
@@ -879,7 +975,8 @@
     if (key === 'kin') {
       sec.spec.tools = sel('kinctx', 'Context', KIN_CTX.map((c) => [c, ctxLabel(c)]), UI.kinCtx || 'acidic_flank');
       body = card(sec.spec);
-    } else if (sec.occupancy || sec.cider) body = card(sec.spec) + card(sec.spec2);
+    } else if (sec.occupancy) body = card(sec.spec) + card(sec.spec2);
+    else if (sec.ctype) body = card(sec.spec) + card(sec.spec2) + card(sec.spec3);
     else if (sec.agnostic) {
       sec.spec.tools = sel('agm', 'Measure', AG_MEASURES.map(([k, l]) => [k, l]), UI.agMeasure || 'basic');
       body = card(sec.spec, '<div class="ag-key">' + AG_SERIES.map(([, n, c]) => '<span><i class="ag-sw ag-' + c + '"></i>' + esc(n) + '</span>').join('') + '</div>') + agSummaryHtml();
@@ -934,7 +1031,7 @@
       partners: 'Proteins with acidic or basic flanks are enriched in nuclear and chromatin proteins, which bind each other, so the null keeps degree and nuclear status. Like binds like: basic–basic pairs are over-represented, acidic–basic pairs are not.',
       occupancy: 'Occupancy is the share of a site’s protein copies that carry the modification. Mann–Whitney compares the distributions; read the medians with the counts, as the flanks hold few measured sites.',
       classes: 'Classes come from MicroDomains’ flank table (TFs: Lambert et al. 2018; RNA-binding domains; curated histone chaperones; histone folds; HMG proteins).',
-      cider: 'κ and the classes are localCIDER’s own (Holehouse et al. 2017). A class reads only the fractions of positive and negative residues; κ adds how they are arranged (0 well mixed, 1 segregated). An IDR is the natural unit here: the whole disordered segment up to the next domain or the protein’s end, as an acidic tail like HMGB1’s sits beyond a basic linker rather than at the fold.',
+      ctype: 'Two numbers decide the words: net charge per residue (acidic or basic beyond ±0.10, five charges per 50 residues) and, for the rest, the share of residues charged (a quarter, Das & Pappu’s boundary of weakly charged chains). An IDR is the natural unit: the whole disordered segment up to the next domain or the protein’s end, as an acidic tail like HMGB1’s sits beyond a basic linker rather than at the fold. Charge segregation (κ) and the Das–Pappu classes are in the IDR and flank tables.',
     };
     return N[key] ? '<div class="panel note-panel"><p>' + esc(N[key]) + '</p></div>' : '';
   }
@@ -946,7 +1043,7 @@
     const go = (k, l) => '<a href="#overview/' + k + '">' + esc(l) + ' →</a>';
     const ideas = [
       ['neg', 'Tested: the unit', 'Beside most domains there is no distinct segment', 'Read without a window, the residues next to a fold resemble the rest of their IDR except for a five-residue basic cap; termini show the same. Family by family, basic extensions sit beside DNA-binding folds (homeodomain, forkhead, HMG box, nuclear-receptor zinc finger), for about 5–20 residues; no family has an acidic one.', [go('agnostic', 'Flank profiles'), go('families', 'Domain families')]],
-      ['neg', 'Tested: the acidic side', 'Acidity is not tethered to the fold', 'The acidic flanks are acidic IDRs that touch a domain: against either its own IDR or the protein’s other disordered residues, no family is more acidic at the edge. HMGB1 shows the shape: a basic linker against HMG box B, its acidic tail beyond it. Score the whole disordered segment, not a fixed window, for acidic biology.', [go('cider', 'Charge classes'), go('families', 'Domain families')]],
+      ['neg', 'Tested: the acidic side', 'Acidity is not tethered to the fold', 'The acidic flanks are acidic IDRs that touch a domain: against either its own IDR or the protein’s other disordered residues, no family is more acidic at the edge. HMGB1 shows the shape: a basic linker against HMG box B, its acidic tail beyond it. Score the whole disordered segment, not a fixed window, for acidic biology.', [go('ctype', 'Charge of IDRs and flanks'), go('families', 'Domain families')]],
       ['data', 'The frame', 'Scored from sequence, tested against modifications', 'Every domain edge of the reviewed proteome is scored from sequence alone, once for basic and once for acidic character; no modification enters either score, so each tile is a test of the scores against data they never saw.', [go('acidic_flank', 'Acidic flanks'), go('basic_flank', 'Basic flanks')]],
       ['new', 'Two chemistries', 'Each charge has its own writers', 'CK2 sites sit in acidic flanks (' + or('ck2', 'acidic_flank') + ') and acidic stretches (' + or('ck2', 'acidic_stretch') + '); methylarginines in RG/RGG clusters (' + or('mR', 'rg_cluster') + ') and basic flanks (' + or('mR', 'basic_flank') + '). The phosphosites of each match different kinases: acidophilic (CK2, GRK, FAM20C) in one, basophilic (PKC, AKT, PKA) in the other. Known cases: CK2 at MYB’s and MAX’s DNA-binding domains, CK2 at HDAC1’s acidic tail.', [go('kin', 'Kinase motifs')]],
       ['new', 'Charge tuning', 'Modifications are placed to change charge blocks', 'Phosphorylation and citrullination at their observed sites sharpen charge blocks more than the same number of random residues would; ADP-ribosylation softens them, as its −2 lands inside basic patches (' + or('adpr', 'basic_patch') + '). Placement, not just composition, is under selection.', [go('charge', 'Charge blocks')]],
@@ -970,9 +1067,14 @@
       '<dt>Acidic score</dt><dd>The same construction with the charge inverted: disorder, acidic charge fraction and density of glutamates in acidic runs (<code>acidic_dtidr_score</code>).</dd>' +
       '<dt id="def-top">Acidic flank, basic flank</dt><dd>A flank in the top tenth of all flanks (' + (100 * S.flank_top).toFixed(0) + 'th percentile) for that score: ' + fmt(B.counts.acidic_flanks) + ' acidic and ' + fmt(B.counts.basic_flanks) + ' basic flanks. A flank can be both. Earlier versions called these the acidic and basic poles.</dd>' +
       '<dt>IDR</dt><dd>A MobiDB disordered region (overlapping fragments merged) of ' + S.min_idr + ' or more residues: ' + fmt(B.counts.idrs) + '. The whole disordered segment, up to the next domain or the protein’s end.</dd></dl></div>' +
-      '<div class="panel"><h3 id="def-cider">Kinds of charged chain (CIDER)</h3><p>Every IDR and every flank is described by localCIDER 0.1.21 (Holehouse et al., Biophys J 112:16, 2017), the parameters of Das & Pappu (PNAS 110:13392, 2013) and Martin et al. (2016), without any score of ours:</p><dl>' +
+      '<div class="panel"><h3 id="def-ctype">Charge, in words</h3><p>Every IDR and flank is called one of four things, from two numbers anyone can check on its sequence (idrkit.charge_type):</p><dl>' +
+      [3, 4, 2, 1].map((t) => '<dt>' + ctChip(t) + '</dt><dd>' + esc(CT_DEF[t]) + '.</dd>').join('') +
+      '<dt>Net charge</dt><dd>K and R count +1, D and E −1, histidine 0; summed over the segment, or per residue (NCPR). The cut of ±0.10 per residue is five charges in excess per 50 residues.</dd>' +
+      '<dt>Charged share</dt><dd>D, E, K and R over all residues (FCR). The quarter is Das & Pappu’s boundary between weakly and strongly charged chains (PNAS 110:13392, 2013).</dd>' +
+      '<dt>On the plots</dt><dd>% acidic residues across, % basic residues up: below the red line acidic, above the blue line basic, between them mixed or, near the corner, few charges.</dd></dl></div>' +
+      '<div class="panel"><h3 id="def-cider">Charge patterning (CIDER)</h3><p>Every IDR and every flank is also described by localCIDER 0.1.21 (Holehouse et al., Biophys J 112:16, 2017), the parameters of Das & Pappu (PNAS 110:13392, 2013) and Martin et al. (2016), without any score of ours:</p><dl>' +
       '<dt>FCR, NCPR, f+, f−</dt><dd>Fractions of charged residues, net charge per residue, fractions of positive (K, R) and negative (D, E) residues.</dd>' +
-      '<dt>Diagram-of-states class</dt><dd>' + [1, 2, 3, 4, 5].map((r) => '<b>R' + r + '</b> ' + esc(REGION[r].toLowerCase()) + ' (' + esc(REGION_DEF[r]) + ')').join('; ') + '. Shown as chips (' + [1, 2, 3, 4, 5].map(dpChip).join('') + ').</dd>' +
+      '<dt>Diagram-of-states class</dt><dd>Das & Pappu’s five classes predict a disordered chain’s shape from its fractions of positive and negative residues; each is named here in plain words with the field’s term beside it:<ul class="dp-list">' + [1, 2, 3, 4, 5].map((r) => '<li>' + dpChip(r) + ' ' + esc(REGION[r]) + ': ' + esc(REGION_RULE[r]) + '; predicted shape <b>' + esc(REGION_SHAPE[r]) + '</b></li>').join('') + '</ul></dd>' +
       '<dt>κ (kappa)</dt><dd>How segregated the positive and negative charges are: δ divided by the largest δ the same residues can reach; 0 well mixed, 1 fully segregated. Left empty for fewer than two charges of each sign.</dd>' +
       '<dt>Ω (Omega)</dt><dd>κ’s extension to charged residues and prolines together.</dd>' +
       '<dt>Hydropathy</dt><dd>Mean Kyte–Doolittle hydropathy normalised to 0–1.</dd></dl><p class="note">idrkit’s δ is checked against localCIDER’s for every IDR and flank when the parameters are computed.</p></div>' +
@@ -1000,70 +1102,106 @@
       '<div class="panel"><h3>How to read the figures</h3><p>Tiles and charts are the Methylarginine Site Explorer’s, drawn by its own code: a dot (or bar) at the odds ratio on a log scale, filled red where more often, slate where less, grey where about the same, hollow where not significant; a line through a dot is its 95% CI. A chart’s title names what it plots; the question it answers heads its section. Charts export as SVG, PNG and TSV; protein maps as SVG and PNG of the view shown.</p></div></div>';
   }
 
-  // ---------------------------------------------------------------- Proteins, Domain flanks, IDRs
+  // ---------------------------------------------------------------- Proteins, Domain flanks, IDRs, Sites
   const inProtSel = () => (R.scoped && R.sel && R.sel.prots ? R.sel.prots : null);
   const KCOLS = (D, on) => OV.kinds.map(([k, l, res]) => ({ k, label: l, num: true, opt: true, on: on.includes(k), menu: l + ' sites', get: (i) => D[k][i], tip: l + ' sites (' + res.split('').join('/') + ')' }));
+  const siteTotal = (D, i) => OV.kinds.reduce((s, [k]) => s + (k === 'ck2' ? 0 : D[k][i] || 0), 0);
   const geneCell = (p, extra) => '<span class="gene">' + esc(geneOf(p)) + '</span><span class="acc">' + esc(PR.acc[p]) + (extra ? ' · ' + extra : '') + '</span>';
-  const TOPB = (bits) => (bits & 2 ? ' <span class="top b" title="basic flank: top tenth of all flanks">B</span>' : '') + (bits & 1 ? ' <span class="top a" title="acidic flank: top tenth of all flanks">A</span>' : '');
+  const TOPB = (bits) => (bits & 2 ? ' <span class="top b" title="basic flank: top tenth of all flanks by the basic score">B</span>' : '') + (bits & 1 ? ' <span class="top a" title="acidic flank: top tenth of all flanks by the acidic score">A</span>' : '');
   const qMatch = (q) => { const Q = q.trim().toUpperCase(); return Q ? (p) => (PR.gene[p] || '').toUpperCase().startsWith(Q) || PR.acc[p].startsWith(Q) : null; };
-  // the filters above a table: a query box, selects and checks, in the URL; change re-routes
-  function filterForm(id, path, st, items) {
-    const html = items.map((it) => {
+  const pctTop = (v) => (v == null ? '' : v >= 990 ? 'top 1%' : v >= 900 ? 'top ' + Math.ceil((1000 - v) / 10) + '%' : Math.round(v / 10) + 'th pct');
+  // the filters above a table: a query box, selects and checks, in the URL; a change re-routes
+  function filterForm(id, st, items) {
+    return '<form class="filters" id="' + id + '">' + items.map((it) => {
       if (it.type === 'text') return '<label>' + esc(it.label) + '<input type="' + (it.num ? 'number' : 'search') + '" name="' + it.k + '" value="' + esc(st[it.k] || '') + '" placeholder="' + esc(it.ph || '') + '"' + (it.num ? ' min="0" step="10"' : '') + '></label>';
       if (it.type === 'select') return '<label>' + esc(it.label) + '<select name="' + it.k + '"><option value="">' + esc(it.any || 'any') + '</option>' + it.opts.map(([v, l]) => '<option value="' + v + '"' + (String(st[it.k]) === String(v) ? ' selected' : '') + '>' + esc(l) + '</option>').join('') + '</select></label>';
       return '<label class="check"><input type="checkbox" name="' + it.k + '"' + (st[it.k] ? ' checked' : '') + '>' + esc(it.label) + '</label>';
-    }).join('');
-    return '<form class="filters" id="' + id + '">' + html + '</form>';
-  }
-  function bindFilterForm(id, path, st, items, extra) {
-    const form = $('#' + id);
-    const save = () => {
-      const p = selParams();
-      for (const it of items) { const v = st[it.k]; if (it.type === 'check' ? v : v !== '' && v != null && v !== 0) p.set(it.k, it.type === 'check' ? '1' : v); }
-      extra(p);
-      setParams(path, p);
-    };
-    form.addEventListener('change', (e) => { const t = e.target; st[t.name] = t.type === 'checkbox' ? t.checked : t.value; st.tbl.n = PAGE_MORE; save(); route(); });
-    form.addEventListener('submit', (e) => e.preventDefault());
-    return save;
+    }).join('') + '</form>';
   }
   const readFilters = (params, items) => Object.fromEntries(items.map((it) => [it.k, it.type === 'check' ? params.get(it.k) === '1' : params.get(it.k) || '']));
-  const tableView = async (o) => {
-    const { path, params, title, lede, items, filter, n, cols, sortKey, sortDir, plot, open, tsv, caption, note } = o;
+  const CT_OPTS = [[3, 'Acidic'], [4, 'Basic'], [2, 'Mixed charge'], [1, 'Few charges']];
+  // A table view: selection, filters, an optional plot that selects, the table. o.plot: { axes: {key: {label, get,
+  // fmt, log}}, ax, ay (defaults), colours: {key: {label, cats, cat}}, col, guides(ax, ay) }
+  async function tableView(o) {
+    const { path, params, items, filter, n, cols, sortKey, sortDir, plot } = o;
     const st = readFilters(params, items);
     st.tbl = tblState(params, sortKey, sortDir);
-    const rows = [];
-    for (let i = 0; i < n; i++) if (filter(i, st)) rows.push(i);
-    view().innerHTML = selPanel() + C.resultsHead(esc(title), fmt(rows.length) + ' of ' + fmt(n) + ' ' + esc(o.unit) + (R.scoped ? ' · ' + esc(selectionText()) : ''), '') + '<p class="lede">' + lede + '</p>' +
-      (plot ? '<div class="plot-row"><div class="panel">' + filterForm('ff', path, st, items) + '</div><div class="card" id="tplot"></div></div>' : '<div class="panel">' + filterForm('ff', path, st, items) + '</div>') + '<div id="tt"></div>';
-    const save = bindFilterForm('ff', path, st, items, (p) => tblParams(p, st.tbl, sortKey, sortDir));
-    const draw = () => tbl($('#tt'), { id: path, cols, rows, st: st.tbl, caption, note, tsv, onOpen: open, onState: () => { save(); draw(); } });
+    const P = plot ? { ax: plot.axes[params.get('ax')] ? params.get('ax') : plot.ax, ay: plot.axes[params.get('ay')] ? params.get('ay') : plot.ay, col: plot.colours[params.get('col')] ? params.get('col') : plot.col,
+      box: (params.get('box') || '').split(',').filter(Boolean).map(Number) } : null;
+    if (P && (P.box.length !== 4 || P.box.some((v) => !Number.isFinite(v)))) P.box = null;
+    const pass = [];
+    for (let i = 0; i < n; i++) if (filter(i, st)) pass.push(i);
+    const AX = P && plot.axes[P.ax], AY = P && plot.axes[P.ay];
+    const inBox = P && P.box ? (i) => { const x = AX.get(i), y = AY.get(i); return x != null && y != null && x >= P.box[0] && x <= P.box[1] && y >= P.box[2] && y <= P.box[3]; } : null;
+    const rows = inBox ? pass.filter(inBox) : pass;
+    const save = () => {
+      const p = selParams();
+      for (const it of items) { const v = st[it.k]; if (it.type === 'check' ? v : v !== '' && v != null) p.set(it.k, it.type === 'check' ? '1' : v); }
+      tblParams(p, st.tbl, sortKey, sortDir);
+      if (P) { if (P.ax !== plot.ax) p.set('ax', P.ax); if (P.ay !== plot.ay) p.set('ay', P.ay); if (P.col !== plot.col) p.set('col', P.col); if (P.box) p.set('box', P.box.join(',')); }
+      setParams(path, p);
+    };
+    const opt = (id, label, map, cur) => '<label>' + esc(label) + ' <select id="' + id + '">' + Object.entries(map).map(([k, v]) => '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + esc(v.label) + '</option>').join('') + '</select></label>';
+    view().innerHTML = selPanel() + C.resultsHead(esc(o.title), '<b>' + fmt(rows.length) + '</b> of ' + fmt(n) + ' ' + esc(o.unit) + (P && P.box ? ' · selected on the plot' : '') + (R.scoped ? ' · ' + esc(selectionText()) : ''), '') +
+      '<p class="lede">' + o.lede + '</p><div class="panel">' + filterForm('ff', st, items) + '</div>' +
+      (plot ? '<div class="card plot-card"><div class="card-head"><div><h3>' + esc(AY.label) + ' against ' + esc(AX.label.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase())) + '</h3><p class="sub">' + esc(plot.sub) + '</p></div></div>' +
+        '<div class="chart-tools">' + opt('pax', 'Across', plot.axes, P.ax) + opt('pay', 'Up', plot.axes, P.ay) + opt('pcol', 'Colour by', plot.colours, P.col) + '</div><div id="tplot"></div></div>' : '') + '<div id="tt"></div>';
+    const form = $('#ff');
+    form.addEventListener('change', (e) => { const t = e.target; st[t.name] = t.type === 'checkbox' ? t.checked : t.value; st.tbl.n = PAGE_MORE; save(); route(); });
+    form.addEventListener('submit', (e) => e.preventDefault());
+    const draw = () => tbl($('#tt'), { id: path, cols, rows, st: st.tbl, caption: o.caption, note: o.note, tsv: o.tsv, onOpen: o.open, onState: () => { save(); draw(); } });
     draw();
-    if (plot) $('#tplot').innerHTML = plot(rows);
+    if (plot) {
+      const C2 = plot.colours[P.col];
+      scatter($('#tplot'), { n, x: AX.get, y: AY.get, xLabel: AX.label, yLabel: AY.label, xFmt: AX.fmt, yFmt: AY.fmt, xLog: !!AX.log, rows: pass, inBox, cats: C2.cats, cat: C2.cat, tip: plot.tip,
+        onOpen: o.open, box: P.box, onBox: (b) => { P.box = b; st.tbl.n = PAGE_MORE; save(); route(); }, guides: plot.guides && plot.guides(P.ax, P.ay, P.col) });
+      for (const [id, k] of [['pax', 'ax'], ['pay', 'ay'], ['pcol', 'col']]) $('#' + id).addEventListener('change', (e) => { P[k] = e.target.value; if (k !== 'col') P.box = null; save(); route(); });
+    }
     bindSelPanel(path);
-  };
+  }
+  // the charge map's guides: net charge of 0.10 per residue either way, and a quarter of residues charged
+  // with Das-Pappu colours, its boundaries instead: a quarter and a third of residues charged, and a third of one sign
+  const chargeGuides = (ax, ay, col) => ((ax === 'fm' && ay === 'fp') ? (g, X, Y, W, H, M) => {
+    const ln = (pts, colour) => { g.strokeStyle = colour; g.setLineDash([5, 4]); g.beginPath(); pts.forEach(([a, b], k) => (k ? g.lineTo(X(a), Y(b)) : g.moveTo(X(a), Y(b)))); g.stroke(); g.setLineDash([]); };
+    const c = (v) => C.cssVar(v);
+    if (col === 'dp') {
+      ln([[0, 25], [25, 0]], c('--muted')); ln([[0, 35], [35, 0]], c('--muted')); ln([[0, 35], [65, 100]], c('--dp5')); ln([[35, 0], [100, 65]], c('--dp4'));
+      g.font = '600 12px ' + (c('--font-body') || 'sans-serif'); g.textAlign = 'left';
+      g.lineWidth = 3; g.strokeStyle = c('--surface'); g.lineJoin = 'round';
+      for (const [r, a, b] of [[1, 2, 3], [2, 22, 8], [3, 28, 24], [4, 50, 6], [5, 2, 44]]) { const t = 'R' + r + ' ' + REGION_SHORT[r].slice(3); g.strokeText(t, X(a), Y(b)); g.fillStyle = c('--dp' + r); g.fillText(t, X(a), Y(b)); }
+      g.lineWidth = 1;
+      return;
+    }
+    ln([[10, 0], [100, 90]], c('--acidic')); ln([[0, 10], [90, 100]], c('--basic')); ln([[0, 25], [25, 0]], c('--muted'));
+    g.font = '600 12px ' + (c('--font-body') || 'sans-serif'); g.textAlign = 'left';
+    const lab = (t, a, b, colour) => { g.lineWidth = 3; g.strokeStyle = c('--surface'); g.lineJoin = 'round'; g.strokeText(t, X(a), Y(b)); g.lineWidth = 1; g.fillStyle = colour; g.fillText(t, X(a), Y(b)); };
+    lab('acidic', 30, 4, c('--acidic')); lab('basic', 2, 32, c('--basic')); lab('mixed', 22, 20, c('--hybrid')); lab('few charges', 2, 3, c('--muted'));
+  } : null);
+  const pctAxis = (label, get) => ({ label, get, fmt: (v) => v + '%' });
 
   async function proteinsView(params) {
     view().innerHTML = '<p class="loading">Loading 20k proteins…</p>';
     await Promise.all([loadProteins(), computeSelection()]);
     const ps = inProtSel(), cls = (p) => OV.classes.filter((c, b) => PR.cls[p] & (1 << b)).map((c) => c[1]);
-    const total = (p) => OV.kinds.reduce((s, [k]) => s + (k === 'ck2' ? 0 : PR[k][p] || 0), 0);
+    const total = (p) => siteTotal(PR, p);
     const mix = (p) => { const t = total(p); if (!t) return '<span class="muted">—</span>'; return '<span class="mix" data-tip="' + esc(OV.kinds.filter(([k]) => k !== 'ck2' && PR[k][p]).map(([k, l]) => fmt(PR[k][p]) + ' ' + l).join('<br>')) + '">' + OV.kinds.filter(([k]) => k !== 'ck2' && PR[k][p]).map(([k]) => '<i style="flex-grow:' + PR[k][p] + ';background:var(--' + KCOL[k] + ')"></i>').join('') + '</span><b class="mix-n">' + fmt(t) + '</b>'; };
-    const items = [{ type: 'text', k: 'q', label: 'Gene or accession', ph: 'e.g. NPM1' }, { type: 'select', k: 'dp', label: 'Has an IDR of class', opts: REGION.slice(1).map((l, k) => [k + 1, 'R' + (k + 1) + ' ' + l]) },
+    const ctCell = (p) => [3, 4, 2].filter((t) => PR.ct[p][t - 1]).map((t) => PR.ct[p][t - 1] + ' ' + ctChip(t)).join(' ') || '<span class="muted">' + (PR.nidr[p] ? 'few charges' : 'no IDR') + '</span>';
+    const items = [{ type: 'text', k: 'q', label: 'Gene or accession', ph: 'e.g. NPM1' }, { type: 'select', k: 'ct', label: 'Has an IDR that is', opts: CT_OPTS },
       { type: 'check', k: 'top', label: 'an acidic or basic flank' }, { type: 'check', k: 'mod', label: 'any modification site' }];
-    await tableView({ path: 'proteins', params, title: 'Proteins', unit: 'reviewed human proteins', items, n: PR.acc.length, sortKey: 'top', sortDir: -1, caption: 'Proteins', tsv: 'idr_explorer_proteins.tsv',
-      lede: 'Every reviewed human protein with its disorder, its best domain flank of each charge, the Das–Pappu classes of its IDRs and its modification sites. Click a protein to open its map.' + docLink('unit'),
-      filter: (p, st) => (!ps || ps.has(p)) && (!st.q || qMatch(st.q)(p)) && (!st.dp || PR.dp[p] & (1 << (st.dp - 1))) && (!st.top || PR.has[p] & 3) && (!st.mod || total(p) > 0),
+    await tableView({ path: 'proteins', params, title: 'Proteins', unit: 'reviewed human proteins', items, n: PR.acc.length, sortKey: 'sites', sortDir: -1, caption: 'Proteins', tsv: 'idr_explorer_proteins.tsv',
+      lede: 'Every reviewed human protein: how much of it is disordered, how its disordered regions are charged, its best domain flank of each charge and its modification sites. Click a protein to open it.' + docLink('unit'),
+      filter: (p, st) => (!ps || ps.has(p)) && (!st.q || qMatch(st.q)(p)) && (!st.ct || PR.ct[p][+st.ct - 1] > 0) && (!st.top || PR.has[p] & 3) && (!st.mod || total(p) > 0),
       open: (p) => { location.hash = PR.acc[p]; },
       cols: [
         { k: 'gene', label: 'Protein', get: (p) => geneOf(p), td: (p) => geneCell(p) + '<div class="pname">' + esc(PR.name[p]) + '</div>' },
         { k: 'len', label: 'Length', num: true, get: (p) => PR.len[p] },
         { k: 'dis', label: 'Disordered', num: true, get: (p) => PR.dis[p], td: (p) => PR.dis[p] + '%', tip: 'Share of residues in MobiDB disordered regions' },
         { k: 'nidr', label: 'IDRs', num: true, get: (p) => PR.nidr[p], tip: 'Disordered regions of ' + OV.settings.min_idr + ' or more residues' },
-        { k: 'dp', label: 'IDR classes', get: (p) => REGION.slice(1).filter((_, k) => PR.dp[p] & (1 << k)).map((_, k) => 'R' + (k + 1)).join(' ') || null, td: (p) => dpChips(PR.dp[p]), tip: 'Das–Pappu diagram-of-states classes of its IDRs (localCIDER)' },
-        { k: 'top', label: 'Best basic flank', num: true, get: (p) => z(PR.zb[p]), td: (p) => zChip(PR.zb[p], 'basic') + TOPB(PR.has[p] & 2), tip: 'Highest basic score (z) of its domain flanks; B: in the top tenth of all flanks' },
+        { k: 'ct', label: 'Charged IDRs', get: (p) => PR.ct[p][2] * 1000 + PR.ct[p][3] * 10 + PR.ct[p][1], td: ctCell, tip: 'Its IDRs that are acidic, basic or of mixed charge (net charge per residue and fraction charged)' },
+        { k: 'dp', label: 'Das–Pappu classes', opt: true, get: (p) => PR.dp[p] || null, td: (p) => dpChips(PR.dp[p]), menu: 'Das–Pappu classes of its IDRs' },
         { k: 'za', label: 'Best acidic flank', num: true, get: (p) => z(PR.za[p]), td: (p) => zChip(PR.za[p], 'acidic') + TOPB(PR.has[p] & 1), tip: 'Highest acidic score (z) of its domain flanks; A: in the top tenth of all flanks' },
-        { k: 'sites', label: 'Modification sites', num: true, get: total, td: mix, tip: 'All modification sites, coloured by kind' },
+        { k: 'zb', label: 'Best basic flank', num: true, get: (p) => z(PR.zb[p]), td: (p) => zChip(PR.zb[p], 'basic') + TOPB(PR.has[p] & 2), tip: 'Highest basic score (z) of its domain flanks; B: in the top tenth of all flanks' },
+        { k: 'sites', label: 'Modification sites', num: true, get: total, td: mix, tip: 'All modification sites, coloured by kind (hover for the counts)' },
         { k: 'cls', label: 'Class', get: (p) => cls(p).join(', ') || null, td: (p) => cls(p).map((c) => '<span class="tag">' + esc(c) + '</span>').join(' ') },
         { k: 'nas', label: 'Acidic stretches', num: true, opt: true, get: (p) => PR.nas[p] }, { k: 'nbp', label: 'Basic patches', num: true, opt: true, get: (p) => PR.nbp[p] },
         { k: 'nrg', label: 'RG/RGG clusters', num: true, opt: true, get: (p) => PR.nrg[p] },
@@ -1075,27 +1213,27 @@
     view().innerHTML = '<p class="loading">Loading 121k domain flanks…</p>';
     await Promise.all([loadProteins(), loadFlanks(), computeSelection()]);
     const ps = inProtSel();
+    const fm = (i) => (FL.fcr[i] == null ? null : (FL.fcr[i] - FL.ncpr[i]) / 20), fp = (i) => (FL.fcr[i] == null ? null : (FL.fcr[i] + FL.ncpr[i]) / 20);
     const items = [{ type: 'text', k: 'q', label: 'Gene or accession', ph: 'e.g. NCL' },
-      { type: 'select', k: 'top', label: 'Top tenth', opts: [['a', 'acidic flank'], ['b', 'basic flank'], ['ab', 'both']] },
-      { type: 'select', k: 'dp', label: 'Das–Pappu class', opts: REGION.slice(1).map((l, k) => [k + 1, 'R' + (k + 1) + ' ' + l]) },
-      { type: 'select', k: 'side', label: 'Side of the domain', any: 'either', opts: [['N', 'N-terminal (before it)'], ['C', 'C-terminal (after it)']] },
-      { type: 'select', k: 'chem', label: 'Chemistry', opts: CHEM_SHORT.map((l, k) => [k, l]) },
+      { type: 'select', k: 'ct', label: 'Charge', opts: CT_OPTS },
+      { type: 'select', k: 'top', label: 'Top tenth by score', opts: [['a', 'acidic flank'], ['b', 'basic flank'], ['ab', 'both']] },
+      { type: 'select', k: 'side', label: 'Side of the domain', any: 'either', opts: [['N', 'before it (N-side)'], ['C', 'after it (C-side)']] },
       { type: 'check', k: 'tf', label: 'TF' }, { type: 'check', k: 'rbd', label: 'RNA-binding domain' }, { type: 'check', k: 'chap', label: 'histone chaperone or HMG' },
       { type: 'check', k: 'mr', label: 'methyl-R inside' }, { type: 'check', k: 'ck2', label: 'CK2 site inside' }, { type: 'check', k: 'hist', label: 'include histone-like' }];
     const dn = (i) => (FL.domain_names[FL.dn[i]] || '').split(';')[0];
+    const T = (i) => FL.top[i];
     await tableView({ path: 'flanks', params, title: 'Domain flanks', unit: 'flanks', items, n: FL.p.length, sortKey: 'za', sortDir: -1, caption: 'Domain flanks', tsv: 'idr_explorer_domain_flanks.tsv',
-      lede: 'The residues beside every folded-domain edge (up to 50; the dtIDR window), scored from sequence once for basic and once for acidic character. The top tenth of each score are the <b>basic</b> and <b>acidic flanks</b>; the Das–Pappu class says what kind of charged chain each flank is without a score. Click a row to open the protein at that flank.' + docLink('unit'),
+      lede: 'The up to 50 residues beside every folded-domain edge (where a domain-tethered IDR would sit), with how charged they are and their two scores. The top tenth by each score are the <b>acidic</b> and <b>basic flanks</b>. Pick flanks on the plot or with the filters; click one to open its protein there.' + docLink('unit'),
       filter: (i, st) => {
         const f = FL.fl[i];
         if (!st.hist && (f & 4)) return false;
         if (ps && !ps.has(FL.p[i])) return false;
         if (st.q && !qMatch(st.q)(FL.p[i])) return false;
-        if (st.chem !== '' && FL.chem[i] !== +st.chem) return false;
+        if (st.ct && FL.ct[i] !== +st.ct) return false;
         if (st.side && FL.side[i] !== (st.side === 'N' ? 0 : 1)) return false;
-        if (st.top === 'a' && !(FL.top[i] & 1)) return false;
-        if (st.top === 'b' && !(FL.top[i] & 2)) return false;
-        if (st.top === 'ab' && FL.top[i] !== 3) return false;
-        if (st.dp && FL.reg[i] !== +st.dp) return false;
+        if (st.top === 'a' && !(T(i) & 1)) return false;
+        if (st.top === 'b' && !(T(i) & 2)) return false;
+        if (st.top === 'ab' && T(i) !== 3) return false;
         if (st.tf && !(f & 1)) return false;
         if (st.rbd && !(f & 2)) return false;
         if (st.chap && !(f & 24)) return false;
@@ -1104,30 +1242,33 @@
         return true;
       },
       open: (i) => { location.hash = PR.acc[FL.p[i]] + '?f=' + FL.fs[i] + '-' + FL.fe[i]; },
-      plot: (rows) => {
-        const xs = FL.zb.map(z), ys = FL.za.map(z), n = FL.p.length;
-        let xr = [Infinity, -Infinity], yr = [Infinity, -Infinity];
-        for (let i = 0; i < n; i++) { if (xs[i] != null) { xr[0] = Math.min(xr[0], xs[i]); xr[1] = Math.max(xr[1], xs[i]); } if (ys[i] != null) { yr[0] = Math.min(yr[0], ys[i]); yr[1] = Math.max(yr[1], ys[i]); } }
-        xr = [Math.floor(xr[0] * 2) / 2, Math.ceil(xr[1] * 2) / 2]; yr = [Math.floor(yr[0] * 2) / 2, Math.ceil(yr[1] * 2) / 2];
-        return '<h3>Basic and acidic score of every flank</h3>' + density({ xs, ys, sel: rows.length < n ? rows : null, xLabel: 'basic score (z)', yLabel: 'acidic score (z)', xr, yr }) +
-          '<p class="note">Binned density of all ' + fmt(n) + ' flanks' + (rows.length < n ? '; the ' + fmt(rows.length) + ' shown in the table in orange' : '') + '. Most flanks are 50 residues, so scores fall on a lattice.</p>';
+      plot: {
+        sub: 'Each flank a point: grey all of them, coloured those your filters keep. Hover for the flank, click to open it, drag to select flanks for the table.',
+        ax: 'fm', ay: 'fp', col: 'top',
+        axes: { fm: pctAxis('% acidic residues (D, E)', fm), fp: pctAxis('% basic residues (K, R)', fp), ncpr: { label: 'Net charge per residue', get: (i) => (FL.ncpr[i] == null ? null : FL.ncpr[i] / 1000) },
+          pa: { label: 'Acidic score, percentile', get: (i) => (FL.pa[i] == null ? null : FL.pa[i] / 10) }, pb: { label: 'Basic score, percentile', get: (i) => (FL.pb[i] == null ? null : FL.pb[i] / 10) },
+          kap: { label: 'Charge segregation (κ)', get: (i) => (FL.kap[i] == null ? null : FL.kap[i] / 1000) }, sites: { label: 'Modification sites in it', get: (i) => siteTotal(FL, i) } },
+        colours: { top: { label: 'acidic or basic flank', cats: [['Acidic flank', '--acidic'], ['Basic flank', '--basic'], ['Both', '--hybrid'], ['Neither', '--ink-2']], cat: (i) => (T(i) === 3 ? 2 : T(i) & 1 ? 0 : T(i) & 2 ? 1 : 3) },
+          ct: { label: 'charge', cats: [['Acidic', '--acidic'], ['Basic', '--basic'], ['Mixed charge', '--hybrid'], ['Few charges', '--ink-2']], cat: (i) => [3, 3, 2, 0, 1][FL.ct[i]] },
+          dp: { label: 'Das–Pappu class', cats: [1, 2, 3, 4, 5].map((r) => [REGION_SHORT[r], '--dp' + r]), cat: (i) => (FL.reg[i] || 1) - 1 } },
+        guides: chargeGuides,
+        tip: (i) => '<b>' + esc(geneOf(FL.p[i])) + ' ' + FL.fs[i] + '–' + FL.fe[i] + '</b> (' + (FL.side[i] ? 'after' : 'before') + ' ' + esc(dn(i).slice(0, 40)) + ')<br>' + CT[FL.ct[i]] + ': D/E ' + Math.round(fm(i)) + '%, K/R ' + Math.round(fp(i)) + '%, net ' + fsign(FL.ncpr[i] / 1000, 2) + ' per residue' +
+          '<br>acidic score ' + pctTop(FL.pa[i]) + ', basic ' + pctTop(FL.pb[i]) + (siteTotal(FL, i) ? '<br>' + fmt(siteTotal(FL, i)) + ' modification sites' : ''),
       },
       cols: [
         { k: 'gene', label: 'Protein', get: (i) => geneOf(FL.p[i]), td: (i) => geneCell(FL.p[i]) },
-        { k: 'fs', label: 'Flank', tdCls: 'nw', get: (i) => FL.fs[i], td: (i) => FL.fs[i] + '–' + FL.fe[i] + ' <span class="muted">' + (FL.side[i] ? 'C' : 'N') + '</span>', tip: 'Residues of the flank and its side of the domain (N: before it, C: after it)' },
+        { k: 'fs', label: 'Flank', tdCls: 'nw', get: (i) => FL.fs[i], td: (i) => FL.fs[i] + '–' + FL.fe[i] + ' <span class="muted">' + (FL.side[i] ? 'after' : 'before') + '</span>', tip: 'Residues of the flank, before (N-side) or after (C-side) the domain' },
         { k: 'dn', label: 'Domain', get: (i) => dn(i) || null, td: (i) => '<span class="dn">' + esc(dn(i).slice(0, 44)) + '</span> <span class="muted">' + FL.ds[i] + '–' + FL.de[i] + '</span>' },
-        { k: 'zb', label: 'Basic score', num: true, get: (i) => z(FL.zb[i]), td: (i) => zChip(FL.zb[i], 'basic') + TOPB(FL.top[i] & 2), tip: 'z-score; B: top tenth of all flanks (a basic flank)' },
-        { k: 'za', label: 'Acidic score', num: true, get: (i) => z(FL.za[i]), td: (i) => zChip(FL.za[i], 'acidic') + TOPB(FL.top[i] & 1), tip: 'z-score; A: top tenth of all flanks (an acidic flank)' },
-        { k: 'pb', label: 'Basic percentile', num: true, opt: true, get: (i) => (FL.pb[i] == null ? null : FL.pb[i] / 10) },
-        { k: 'pa', label: 'Acidic percentile', num: true, opt: true, get: (i) => (FL.pa[i] == null ? null : FL.pa[i] / 10) },
-        { k: 'dp', label: 'Das–Pappu', get: (i) => FL.reg[i] || null, td: (i) => dpChip(FL.reg[i]), tip: 'Diagram-of-states class of the flank’s sequence (localCIDER)' },
-        { k: 'fcr', label: 'FCR', num: true, opt: true, on: true, get: (i) => (FL.fcr[i] == null ? null : FL.fcr[i] / 1000), td: (i) => f3(FL.fcr[i]), tip: 'Fraction of charged residues' },
-        { k: 'ncpr', label: 'NCPR', num: true, opt: true, on: true, get: (i) => (FL.ncpr[i] == null ? null : FL.ncpr[i] / 1000), td: (i) => f3(FL.ncpr[i]), tip: 'Net charge per residue' },
-        { k: 'kap', label: 'κ', num: true, opt: true, on: true, get: (i) => (FL.kap[i] == null ? null : FL.kap[i] / 1000), td: (i) => f3(FL.kap[i]), tip: 'Das & Pappu’s κ: 0 charges well mixed, 1 fully segregated (needs two charges of each sign)' },
+        { k: 'ncpr', label: 'Charge', num: true, get: (i) => (FL.ncpr[i] == null ? null : FL.ncpr[i] / 1000), td: (i) => chargeCell(fm(i) / 100, fp(i) / 100, FL.ncpr[i] / 1000, FL.ct[i]), tip: 'D/E (red) and K/R (blue) share of residues, and net charge per residue; sorts by net charge' },
+        { k: 'dp', label: 'Das–Pappu class', opt: true, get: (i) => FL.reg[i] || null, td: (i) => dpChip(FL.reg[i]), menu: 'Das–Pappu class (predicted shape)' },
+        { k: 'za', label: 'Acidic score', num: true, get: (i) => z(FL.za[i]), td: (i) => '<span class="pt">' + pctTop(FL.pa[i]) + '</span>' + TOPB(T(i) & 1), tip: 'Acidic score (MicroDomains: disorder, acidic charge, glutamate tracts) as a percentile of all flanks; A: top tenth' },
+        { k: 'zb', label: 'Basic score', num: true, get: (i) => z(FL.zb[i]), td: (i) => '<span class="pt">' + pctTop(FL.pb[i]) + '</span>' + TOPB(T(i) & 2), tip: 'Basic score (MicroDomains dtIDR score) as a percentile of all flanks; B: top tenth' },
+        { k: 'kap', label: 'Charge segregation (κ)', num: true, opt: true, get: (i) => (FL.kap[i] == null ? null : FL.kap[i] / 1000), td: (i) => f3(FL.kap[i]), tip: 'κ (localCIDER): 0 positive and negative residues well mixed, 1 fully segregated; needs two charges of each sign' },
         { k: 'chem', label: 'Chemistry', opt: true, get: (i) => CHEM_SHORT[FL.chem[i]] || null },
         { k: 'lar', label: 'Longest D/E run', num: true, opt: true, get: (i) => FL.lar[i] },
         { k: 'flags', label: 'Class', get: (i) => flagText(FL.fl[i]) || null },
-      ].concat(KCOLS(FL, ['mR', 'ph', 'ck2'])),
+        { k: 'sites', label: 'Sites', num: true, get: (i) => siteTotal(FL, i), tip: 'Modification sites inside the flank (Columns: by kind)' },
+      ].concat(KCOLS(FL, ['ph', 'mR'])),
     });
   }
 
@@ -1136,20 +1277,20 @@
     await Promise.all([loadProteins(), loadIdrs(), computeSelection()]);
     const ps = inProtSel();
     const items = [{ type: 'text', k: 'q', label: 'Gene or accession', ph: 'e.g. NPM1' }, { type: 'text', k: 'minlen', label: 'Minimum length', num: true, ph: String(OV.settings.min_idr) },
-      { type: 'select', k: 'dp', label: 'Das–Pappu class', opts: REGION.slice(1).map((l, k) => [k + 1, 'R' + (k + 1) + ' ' + l]) },
+      { type: 'select', k: 'ct', label: 'Charge', opts: CT_OPTS },
       { type: 'select', k: 'term', label: 'Position', opts: [['N', 'N-terminal'], ['C', 'C-terminal'], ['I', 'internal']] },
-      { type: 'check', k: 'as', label: 'acidic stretch' }, { type: 'check', k: 'rg', label: 'RG/RGG cluster' }, { type: 'check', k: 'bp', label: 'basic patch' },
-      { type: 'check', k: 'blocky', label: 'blocky (δ z ≥ ' + OV.settings.blocky_z + ')' }, { type: 'check', k: 'sharp', label: 'phosphosites sharpen its blocks' },
-      { type: 'check', k: 'mr', label: 'methyl-R' }, { type: 'check', k: 'ck2', label: 'CK2 site' }, { type: 'check', k: 'glu', label: 'Glu site' }, { type: 'check', k: 'fl', label: 'at a domain flank' }];
+      { type: 'check', k: 'fl', label: 'touches a domain' }, { type: 'check', k: 'as', label: 'acidic stretch' }, { type: 'check', k: 'bp', label: 'basic patch' }, { type: 'check', k: 'rg', label: 'RG/RGG cluster' },
+      { type: 'check', k: 'blocky', label: 'charge blocks' }, { type: 'check', k: 'mr', label: 'methyl-R' }, { type: 'check', k: 'ck2', label: 'CK2 site' }, { type: 'check', k: 'glu', label: 'Glu site' }];
     const fd = (v) => (v == null ? '' : (v >= 0 ? '+' : '−') + Math.abs(v / 1e6).toFixed(4));
-    await tableView({ path: 'idrs', params, title: 'IDRs', unit: 'IDRs', items, n: ID.p.length, sortKey: 'kap', sortDir: -1, caption: 'IDRs', tsv: 'idr_explorer_idrs.tsv',
-      lede: 'Every MobiDB disordered region of ' + OV.settings.min_idr + ' or more residues: its Das–Pappu class and charge patterning (κ, Ω from localCIDER; δ z against shuffles), the change its observed modifications make, its sequence elements and sites, and the best domain flank it overlaps. Click a row to open the protein at that IDR.' + docLink('charge'),
+    const len = (i) => ID.e[i] - ID.s[i] + 1;
+    await tableView({ path: 'idrs', params, title: 'IDRs', unit: 'IDRs', items, n: ID.p.length, sortKey: 'ncpr', sortDir: 1, caption: 'IDRs', tsv: 'idr_explorer_idrs.tsv',
+      lede: 'Every disordered region of ' + OV.settings.min_idr + ' or more residues (MobiDB), with how it is charged, how its charges are arranged, its sequence elements and its modification sites. Pick IDRs on the plot or with the filters; click one to open its protein there.' + docLink('charge'),
       filter: (i, st) => {
-        if (st.minlen && ID.e[i] - ID.s[i] + 1 < +st.minlen) return false;
+        if (st.minlen && len(i) < +st.minlen) return false;
         if (ps && !ps.has(ID.p[i])) return false;
         if (st.q && !qMatch(st.q)(ID.p[i])) return false;
         if (st.term && ID.term[i] !== st.term) return false;
-        if (st.dp && ID.reg[i] !== +st.dp) return false;
+        if (st.ct && ID.ct[i] !== +st.ct) return false;
         if (st.as && !ID.nas[i]) return false;
         if (st.rg && !ID.nrg[i]) return false;
         if (st.bp && !ID.nbp[i]) return false;
@@ -1157,60 +1298,173 @@
         if (st.glu && !ID.glu[i]) return false;
         if (st.ck2 && !ID.ck2[i]) return false;
         if (st.blocky && !(ID.dz[i] >= OV.settings.blocky_z * 100)) return false;
-        if (st.sharp && !(ID.dd_ph[i] != null && ID.rd_ph[i] != null && ID.dd_ph[i] > ID.rd_ph[i])) return false;
         if (st.fl && ID.zb[i] == null) return false;
         return true;
       },
       open: (i) => { location.hash = PR.acc[ID.p[i]] + '?f=' + ID.s[i] + '-' + ID.e[i]; },
-      plot: (rows) => '<h3>Das–Pappu diagram of states</h3>' + dpPlane(rows.length < ID.p.length ? rows : null) +
-        '<p class="note">Every IDR by its fractions of negative (D, E) and positive (K, R) residues, in the five classes of Das & Pappu (2013): binned counts, the rows shown in orange. Hover a class for its definition.</p>',
+      plot: {
+        sub: 'Each IDR a point: grey all of them, coloured those your filters keep. Below the red line an IDR is acidic (net charge ≤ −0.10 per residue), above the blue one basic; near the corner few residues are charged. Colour by Das–Pappu class to see the diagram of states. Hover for the IDR, click to open it, drag to select IDRs for the table.',
+        ax: 'fm', ay: 'fp', col: 'ct',
+        axes: { fm: pctAxis('% acidic residues (D, E)', (i) => ID.fde[i] / 10), fp: pctAxis('% basic residues (K, R)', (i) => ID.frk[i] / 10), ncpr: { label: 'Net charge per residue', get: (i) => ID.ncpr[i] / 1000 },
+          len: { label: 'Length (residues)', get: len, log: true }, kap: { label: 'Charge segregation (κ)', get: (i) => (ID.kap[i] == null ? null : ID.kap[i] / 1000) },
+          dz: { label: 'Charge blocks (δ z)', get: (i) => z(ID.dz[i]) }, sites: { label: 'Modification sites in it', get: (i) => siteTotal(ID, i) },
+          ph: { label: 'Phosphosites in it', get: (i) => ID.ph[i] }, mR: { label: 'Methylarginines in it', get: (i) => ID.mR[i] } },
+        colours: { ct: { label: 'charge', cats: [['Acidic', '--acidic'], ['Basic', '--basic'], ['Mixed charge', '--hybrid'], ['Few charges', '--ink-2']], cat: (i) => [3, 3, 2, 0, 1][ID.ct[i]] },
+          dp: { label: 'Das–Pappu class', cats: [1, 2, 3, 4, 5].map((r) => [REGION_SHORT[r], '--dp' + r]), cat: (i) => (ID.reg[i] || 1) - 1 },
+          top: { label: 'acidic or basic flank', cats: [['At an acidic flank', '--acidic'], ['At a basic flank', '--basic'], ['At both', '--hybrid'], ['Neither', '--ink-2']], cat: (i) => (ID.top[i] === 3 ? 2 : ID.top[i] & 1 ? 0 : ID.top[i] & 2 ? 1 : 3) } },
+        guides: chargeGuides,
+        tip: (i) => '<b>' + esc(geneOf(ID.p[i])) + ' ' + ID.s[i] + '–' + ID.e[i] + '</b> (' + len(i) + ' aa)<br>' + CT[ID.ct[i]] + ': D/E ' + Math.round(ID.fde[i] / 10) + '%, K/R ' + Math.round(ID.frk[i] / 10) + '%, net ' + fsign(ID.ncpr[i] / 1000, 2) + ' per residue' +
+          '<br>Das–Pappu ' + REGION_SHORT[ID.reg[i] || 1] + ' (' + REGION_SHAPE[ID.reg[i] || 1] + ')' +
+          (ID.kap[i] != null ? '<br>charge segregation κ ' + f3(ID.kap[i]) : '') + (siteTotal(ID, i) ? '<br>' + fmt(siteTotal(ID, i)) + ' modification sites' : ''),
+      },
       cols: [
         { k: 'gene', label: 'Protein', get: (i) => geneOf(ID.p[i]), td: (i) => geneCell(ID.p[i]) },
         { k: 'reg', label: 'IDR', tdCls: 'nw', get: (i) => ID.s[i], td: (i) => ID.s[i] + '–' + ID.e[i] + ' <span class="muted">' + ({ N: 'N-term', C: 'C-term', I: '', W: 'whole' }[ID.term[i]] || '') + '</span>' },
-        { k: 'len', label: 'Length', num: true, get: (i) => ID.e[i] - ID.s[i] + 1 },
-        { k: 'dp', label: 'Das–Pappu', get: (i) => ID.reg[i] || null, td: (i) => dpChip(ID.reg[i]), tip: 'Diagram-of-states class (localCIDER)' },
-        { k: 'fcr', label: 'FCR', num: true, get: (i) => ID.fcr[i] / 1000, td: (i) => f3(ID.fcr[i]), tip: 'Fraction of charged residues' },
-        { k: 'ncpr', label: 'NCPR', num: true, get: (i) => ID.ncpr[i] / 1000, td: (i) => f3(ID.ncpr[i]), tip: 'Net charge per residue' },
-        { k: 'kap', label: 'κ', num: true, get: (i) => (ID.kap[i] == null ? null : ID.kap[i] / 1000), td: (i) => f3(ID.kap[i]), tip: 'Das & Pappu’s κ (localCIDER): 0 charges well mixed, 1 fully segregated; needs two charges of each sign' },
+        { k: 'len', label: 'Length', num: true, get: len },
+        { k: 'ncpr', label: 'Charge', num: true, get: (i) => ID.ncpr[i] / 1000, td: (i) => chargeCell(ID.fde[i] / 1000, ID.frk[i] / 1000, ID.ncpr[i] / 1000, ID.ct[i]), tip: 'D/E (red) and K/R (blue) share of residues, and net charge per residue; sorts by net charge' },
+        { k: 'dp', label: 'Das–Pappu class', opt: true, on: true, get: (i) => ID.reg[i] || null, td: (i) => dpChip(ID.reg[i]), tip: 'Das & Pappu’s diagram-of-states class and the shape it predicts (hover a class)', menu: 'Das–Pappu class (predicted shape)' },
+        { k: 'net', label: 'Net charge', num: true, get: (i) => Math.round(ID.ncpr[i] / 1000 * len(i)), td: (i) => fsign(Math.round(ID.ncpr[i] / 1000 * len(i)), 0), tip: 'K + R − D − E over the whole IDR' },
+        { k: 'kap', label: 'Charge segregation (κ)', num: true, get: (i) => (ID.kap[i] == null ? null : ID.kap[i] / 1000), td: (i) => f3(ID.kap[i]), tip: 'κ (localCIDER): 0 positive and negative residues well mixed, 1 fully segregated; needs two charges of each sign' },
+        { k: 'dz', label: 'Charge blocks (δ z)', num: true, opt: true, get: (i) => z(ID.dz[i]), td: (i) => fz(ID.dz[i]), tip: 'Charge patterning against 40 shuffles of the same residues; ≥ ' + OV.settings.blocky_z + ': blocks' },
         { k: 'om', label: 'Ω', num: true, opt: true, get: (i) => (ID.om[i] == null ? null : ID.om[i] / 1000), td: (i) => f3(ID.om[i]), tip: 'Ω (Martin et al. 2016): κ for charges and prolines together' },
-        { k: 'dz', label: 'δ z', num: true, get: (i) => z(ID.dz[i]), td: (i) => fz(ID.dz[i]), tip: 'Charge patterning against 40 shuffles of the same residues; ≥ ' + OV.settings.blocky_z + ': blocky' },
-        { k: 'sz', label: 'SCD z', num: true, opt: true, get: (i) => z(ID.sz[i]), td: (i) => fz(ID.sz[i]), tip: 'Sequence charge decoration against shuffles; below 0, more segregated' },
         { k: 'hyd', label: 'Hydropathy', num: true, opt: true, get: (i) => (ID.hyd[i] == null ? null : ID.hyd[i] / 1000), td: (i) => f3(ID.hyd[i]), tip: 'Mean Kyte–Doolittle hydropathy, 0–1 (localCIDER)' },
-        { k: 'dn', label: 'Δ NCPR modified', num: true, opt: true, tip: 'Net charge per residue with every observed site modified, minus unmodified (idrkit.ptm charges)', get: (i) => (ID.nmod[i] ? ID.dn[i] / 1000 : null), td: (i) => (ID.nmod[i] ? f3(ID.dn[i]) : '') },
-        { k: 'dd', label: 'Δ δ modified', num: true, opt: true, tip: 'δ with every observed site modified, minus unmodified: above 0, the modifications sharpen the charge blocks', get: (i) => (ID.nmod[i] ? ID.dd[i] / 1e6 : null), td: (i) => (ID.nmod[i] ? fd(ID.dd[i]) : '') },
-        { k: 'ddph', label: 'Δ δ phospho vs random', num: true, opt: true, tip: 'δ change of the observed phosphosites minus the mean change of as many random S/T in the same IDR', get: (i) => (ID.dd_ph[i] != null && ID.rd_ph[i] != null ? (ID.dd_ph[i] - ID.rd_ph[i]) / 1e6 : null), td: (i) => (ID.dd_ph[i] != null && ID.rd_ph[i] != null ? fd(ID.dd_ph[i] - ID.rd_ph[i]) : '') },
+        { k: 'dn', label: 'Δ net charge, modified', num: true, opt: true, tip: 'Net charge per residue with every observed site modified, minus unmodified (idrkit.ptm charges)', get: (i) => (ID.nmod[i] ? ID.dn[i] / 1000 : null), td: (i) => (ID.nmod[i] ? f3(ID.dn[i]) : '') },
+        { k: 'dd', label: 'Δ δ, modified', num: true, opt: true, tip: 'δ with every observed site modified, minus unmodified: above 0, the modifications sharpen the charge blocks', get: (i) => (ID.nmod[i] ? ID.dd[i] / 1e6 : null), td: (i) => (ID.nmod[i] ? fd(ID.dd[i]) : '') },
         { k: 'lde', label: 'Longest D/E run', num: true, opt: true, get: (i) => ID.lde[i] },
         { k: 'nas', label: 'Acidic stretches', num: true, opt: true, get: (i) => ID.nas[i] }, { k: 'nbp', label: 'Basic patches', num: true, opt: true, get: (i) => ID.nbp[i] },
         { k: 'nrg', label: 'RG/RGG clusters', num: true, opt: true, get: (i) => ID.nrg[i] },
-        { k: 'zb', label: 'Basic flank', num: true, opt: true, on: true, get: (i) => z(ID.zb[i]), td: (i) => zChip(ID.zb[i], 'basic') + TOPB(ID.top[i] & 2), tip: 'Best basic score among the flanks it overlaps' },
-        { k: 'za', label: 'Acidic flank', num: true, opt: true, on: true, get: (i) => z(ID.za[i]), td: (i) => zChip(ID.za[i], 'acidic') + TOPB(ID.top[i] & 1), tip: 'Best acidic score among the flanks it overlaps' },
-      ].concat(KCOLS(ID, ['mR', 'ph'])),
+        { k: 'za', label: 'Acidic flank', num: true, opt: true, get: (i) => z(ID.za[i]), td: (i) => zChip(ID.za[i], 'acidic') + TOPB(ID.top[i] & 1), tip: 'Best acidic score among the domain flanks it overlaps' },
+        { k: 'zb', label: 'Basic flank', num: true, opt: true, get: (i) => z(ID.zb[i]), td: (i) => zChip(ID.zb[i], 'basic') + TOPB(ID.top[i] & 2), tip: 'Best basic score among the domain flanks it overlaps' },
+        { k: 'sites', label: 'Sites', num: true, get: (i) => siteTotal(ID, i), tip: 'Modification sites in the IDR (Columns: by kind)' },
+      ].concat(KCOLS(ID, ['ph', 'mR'])),
+    });
+  }
+
+  // Every modification site, as the Methylarginine Site Explorer's Sites table: where it sits and how it is charged there.
+  async function sitesView(params) {
+    view().innerHTML = '<p class="loading">Loading 334k sites…</p>';
+    await Promise.all([loadProteins(), loadStats(), computeSelection()]);
+    const ps = inProtSel(), keep = R.sel && R.sel.keep;
+    const ctxBit = (c) => 1 << CTX_ORDER().indexOf(c);
+    const CTX_SHOW = [['acidic_flank', 'acidic flank'], ['basic_flank', 'basic flank'], ['acidic_stretch', 'acidic stretch'], ['basic_patch', 'basic patch'], ['rg_cluster', 'RG/RGG cluster'], ['domain', 'domain']];
+    const items = [{ type: 'text', k: 'q', label: 'Gene or accession', ph: 'e.g. HMGB1' },
+      { type: 'select', k: 'kind', label: 'Modification', opts: OV.kinds.map(([k, l], b) => [b, l]) },
+      { type: 'select', k: 'ct', label: 'In an IDR that is', opts: CT_OPTS.concat([[9, 'any IDR'], [0, 'not in an IDR']]) },
+      { type: 'select', k: 'cx', label: 'Inside', opts: CTX_SHOW }];
+    const kOf = (i) => OV.kinds[SI.k[i]];
+    const KIN = OV.kinase_rows;
+    await tableView({ path: 'sites', params, title: 'Sites', unit: 'modification sites', items, n: SI.p.length, sortKey: 'gene', sortDir: 1, caption: 'Sites', tsv: 'idr_explorer_sites.tsv',
+      lede: 'Every modification site, with the charge of the disordered region it sits in and the sequence elements around it. Click a site to open it on its protein.' + docLink('kinds'),
+      filter: (i, st) => {
+        if (ps && !ps.has(SI.p[i])) return false;
+        if (keep && !keep(i)) return false;
+        if (st.q && !qMatch(st.q)(SI.p[i])) return false;
+        if (st.kind !== '' && SI.k[i] !== +st.kind) return false;
+        if (st.ct !== '') { const t = +st.ct; if (t === 9 ? !SI.ct[i] : SI.ct[i] !== t) return false; }
+        if (st.cx && !(SI.ctx[i] & ctxBit(st.cx))) return false;
+        return true;
+      },
+      open: (i) => { location.hash = PR.acc[SI.p[i]] + '?site=' + SI.pos[i]; },
+      cols: [
+        { k: 'gene', label: 'Protein', get: (i) => geneOf(SI.p[i]), td: (i) => geneCell(SI.p[i]) },
+        { k: 'pos', label: 'Site', num: true, get: (i) => SI.pos[i], td: (i) => '<b>' + SI.r[i] + SI.pos[i] + '</b>' },
+        { k: 'kind', label: 'Modification', get: (i) => kOf(i)[1], td: (i) => '<i class="kdot" style="background:var(--' + KCOL[kOf(i)[0]] + ')"></i>' + esc(kOf(i)[1]) },
+        { k: 'ct', label: 'Its IDR', get: (i) => SI.ct[i], td: (i) => (SI.ct[i] ? ctChip(SI.ct[i]) : '<span class="muted">ordered</span>'), tip: 'The charge of the disordered region the site sits in' },
+        { k: 'cx', label: 'Inside', get: (i) => CTX_SHOW.filter(([c]) => SI.ctx[i] & ctxBit(c)).map(([, l]) => l).join(', ') || null, td: (i) => CTX_SHOW.filter(([c]) => SI.ctx[i] & ctxBit(c)).map(([, l]) => '<span class="tag">' + esc(l) + '</span>').join(' ') },
+        { k: 'km', label: 'Kinase motifs', get: (i) => (SI.km[i] > 0 ? KIN.filter((_, b) => SI.km[i] & (1 << b)).map((r) => r[1]).join(', ') : null), tip: 'Phosphosites: the representative kinases whose motif the site matches (Johnson et al. 2023, percentile ≥ ' + OV.kinase_match + ')' },
+        { k: 'src', label: 'Reported by', get: (i) => srcNames(SI.src[i]) + (SI.conf[i] ? ', PTMeXchange ' + CONF[SI.conf[i]] : '') },
+      ],
     });
   }
 
   // ---------------------------------------------------------------- protein page
-  // The Methylarginine Site Explorer's protein page: its header (gene, name, accession, links), its facts, its protein
-  // map (its marks: the chain with disorder as a wave, domain boxes, lollipop sites in stacked levels with leader-lined
-  // labels; drag across to zoom, double-click to zoom out), a panel for the site or stretch clicked, and folds.
+  // What a reader of one protein wants to know, in order: which of its disordered regions are charged and how unusual
+  // they are (highlights), where everything lies (the map, with a read-out of every residue under the pointer), each
+  // charged segment's sequence and what its modifications do to its charge (segment cards, with a what-if), the sites
+  // and their evidence, its structure, and its sequence. Built as the Methylarginine Site Explorer builds its page
+  // (its header, facts, folds, marks, UniProt and AlphaFold loaders), with that page one click away.
   const KCOL = { ph: 'phospho', ck2: 'ck2', py: 'phospho', mR: 'meth', cit: 'cit', kac: 'kac', kacyl: 'kac', ub: 'ub', sumo: 'sumo', kme: 'kme', adpr: 'adpr', glu: 'glu' };
-  // the light theme's track colours (idr.css), for exports, which are always light
-  const TRACK_LIGHT = { basic: '#2F6FD6', acidic: '#D64545', domain: '#B9DDE6', 'domain-ink': '#0F3B47', family: '#ECE4CF', dis: '#8796A0', rg: '#F5D6DE', 'rg-ink': '#7A2E45', meth: '#B4485F', kme: '#A21CAF',
-    phospho: '#6B7F88', ck2: '#B7791F', kac: '#EB6834', sumo: '#4D7C0F', glu: '#1B8A5A', cit: '#0E7490', adpr: '#78350F', ub: '#3F4C55', dp1: '#1BAF7A', dp2: '#C98500', dp3: '#8E44AD', dp4: '#D64545', dp5: '#2F6FD6' };
-  const tc = (name, exp) => (exp ? TRACK_LIGHT[name] : C.cssVar('--' + name) || TRACK_LIGHT[name]);
-  // the kinds drawn as sites, in map order (by residue: R, K, S/T/Y, E), and the reader's choice of them
+  // the light theme's colours (idr.css), for exports, which are always light
+  const TRACK_LIGHT = { basic: '#2F6FD6', acidic: '#D64545', hybrid: '#7B3294', domain: '#B9DDE6', 'domain-ink': '#0F3B47', dis: '#8796A0', rg: '#F5D6DE', 'rg-ink': '#7A2E45', meth: '#B4485F', kme: '#A21CAF',
+    phospho: '#6B7F88', ck2: '#B7791F', kac: '#EB6834', sumo: '#4D7C0F', glu: '#1B8A5A', cit: '#0E7490', adpr: '#78350F', ub: '#3F4C55', muted: '#5F6F78', 'ink-2': '#374151', rna: '#7C3AED', dna: '#B7791F', region: '#E7ECEF' };
+  const tc = (name, exp) => (exp ? TRACK_LIGHT[name] || '#888' : C.cssVar('--' + name) || TRACK_LIGHT[name]);
+  const CT_COL = ['', 'ink-2', 'hybrid', 'acidic', 'basic'];
   const MAP_KINDS = [['mR', 'Methyl-R'], ['cit', 'Citrulline'], ['kac', 'Acetyl-K'], ['kacyl', 'Acidic acyl-K'], ['ub', 'Ubiquitin-K'], ['sumo', 'SUMO-K'], ['kme', 'Methyl-K'],
     ['ph', 'Phospho-S/T'], ['py', 'Phospho-Y'], ['adpr', 'ADP-ribosyl'], ['glu', 'Glutamyl']];
   const MAP_DEFAULT = ['mR', 'cit', 'kac', 'kacyl', 'sumo', 'kme', 'ph', 'py', 'adpr', 'glu'];
   const mapKinds = () => { const s = store.get('map-kinds'); try { return new Set(s ? JSON.parse(s) : MAP_DEFAULT); } catch (e) { return new Set(MAP_DEFAULT); } };
-  const PV = { p: null, zoom: null, labels: 'auto', pick: null };
+  const MAP_ROWS = [['uni', 'Regions (UniProt)'], ['charge', 'Net charge'], ['idr', 'IDRs by charge'], ['flank', 'Acidic and basic flanks'], ['el', 'Sequence elements'], ['rna', 'RNA binding in cells'], ['dna', 'DNA binding in cells'], ['plddt', 'AlphaFold confidence'], ['ck2m', 'CK2 motifs without a site']];
+  const mapRows = () => { const s = store.get('map-rows'); try { return new Set(s ? JSON.parse(s) : MAP_ROWS.map((r) => r[0])); } catch (e) { return new Set(MAP_ROWS.map((r) => r[0])); } };
+  const PV = { p: null, zoom: null, labels: 'auto', pick: null, hl: null };
   const residueName = (seq, pos) => seq[pos - 1] + pos;
+  // the charge a modification leaves on its residue (idrkit.ptm MODIFIED_CHARGE); kinds without one change no charge here
+  const MOD_Q = { phospho: { S: -2, T: -2, Y: -2 }, acetyl: { K: 0 }, acyl_acidic: { K: -1 }, citrulline: { R: 0 }, adp_ribosyl: { S: -2, D: -2, E: -2 }, glutamyl: { E: -2 } };
+  const RES_Q = { K: 1, R: 1, D: -1, E: -1 };
+  const kindMod = (k) => (OV.kinds.find((x) => x[0] === k) || [])[3];
+  const modQ = (k, res) => { const t = MOD_Q[kindMod(k)]; return t && res in t ? t[res] : null; };
+  const SRC_LINK = { uniprot: (acc) => 'https://www.uniprot.org/uniprotkb/' + acc + '/entry#ptm_processing', iptmnet: (acc) => 'https://research.bioinformatics.udel.edu/iptmnet/entry/' + acc + '/',
+    release: (acc) => PTM_SITE + '#' + acc, ptmx: () => 'https://www.ebi.ac.uk/pride/archive/projects/PXD079218', rebak2024: () => 'https://doi.org/10.1038/s41594-024-01214-9',
+    hendriks2021: () => 'https://doi.org/10.1038/s41467-021-26172-4', koenig2026: () => 'https://doi.org/10.1038/s41594-026-01877-6', ttll4: () => 'https://www.ebi.ac.uk/pride/archive/projects/PXD065251' };
+  const srcLinks = (bits, conf, acc) => OV.sources.filter((s) => bits & s[1]).map(([k, , l]) => '<a href="' + SRC_LINK[k](acc) + '" target="_blank" rel="noopener">' + esc(l) + '</a>' + (k === 'ptmx' && conf ? ' ' + CONF[conf] : '')).join(', ');
+  const srcText = (v) => srcNames(v[1]) + (v[2] ? ', PTMeXchange ' + CONF[v[2]] : '');
+  const PLDDT = [[90, '#0053D6', 'very high (≥ 90)'], [70, '#65CBF3', 'confident (70–90)'], [50, '#FFDB13', 'low (50–70)'], [0, '#FF7D45', 'very low (< 50)']];
+  const plddtCol = (v) => PLDDT.find((b) => v >= b[0])[1];
+  const XL_PEP = ['RBDmap fragment', 'CAPRI peptide', 'pCLAP peptide', 'RBR-ID+ stretch'];
+  // ranks against every IDR: the share of IDRs more acidic (basic) than this one
+  let RANK = null;
+  const rankOf = (i) => {
+    if (!RANK) { const v = Int32Array.from(ID.ncpr).sort(); RANK = v; }
+    const x = ID.ncpr[i]; let lo = 0, hi = RANK.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (RANK[m] < x) lo = m + 1; else hi = m; }
+    let hi2 = lo; while (hi2 < RANK.length && RANK[hi2] === x) hi2++;
+    return { below: lo / RANK.length, above: (RANK.length - hi2) / RANK.length };   // shares more acidic, more basic
+  };
+  const rankText = (i) => {
+    const r = rankOf(i), t = ID.ct[i];
+    if (t === 3) return 'more acidic than ' + (100 * (1 - r.below)).toFixed(r.below < 0.01 ? 1 : 0) + '% of IDRs';
+    if (t === 4) return 'more basic than ' + (100 * (1 - r.above)).toFixed(r.above < 0.01 ? 1 : 0) + '% of IDRs';
+    return '';
+  };
+  const netOf = (i) => Math.round(ID.ncpr[i] / 1000 * (ID.e[i] - ID.s[i] + 1));
 
-  // The map: o.exp draws it for export (light, titled, legend in the figure).
+  // the charged segments of a protein: its IDRs, and its acidic and basic flanks (the top tenth by either score) where
+  // they are not already most of an IDR, as a short acidic tail beside a fold is not an IDR of 20 residues (MYB 1-34);
+  // each with its charge from its sequence and what touches it
+  function segmentsOf(ctx) {
+    const { Rp, S, idrs, names, seq } = ctx, xl = ctx.xl || {};
+    const dn = (d) => (names[d[2]] ? names[d[2]][1] : 'a domain');
+    const make = (o) => {
+      const { s, e } = o, sub = seq.slice(s - 1, e), len = e - s + 1;
+      const fm = sub.replace(/[^DE]/g, '').length / len, fp = sub.replace(/[^KR]/g, '').length / len, net = Math.round((fp - fm) * len);
+      const sites = [];
+      for (const [k] of MAP_KINDS) for (const v of S[k] || []) if (v[0] >= s && v[0] <= e) sites.push({ k, v, pos: v[0] });
+      sites.sort((x, y) => x.pos - y.pos);
+      const before = (Rp.dom || []).filter((d) => d[0] > e && d[0] - e <= 10).map((d) => 'before ' + dn(d) + ' (' + d[0] + '–' + d[1] + ')');
+      const after = (Rp.dom || []).filter((d) => d[1] < s && s - d[1] <= 10).map((d) => 'after ' + dn(d) + ' (' + d[0] + '–' + d[1] + ')');
+      return Object.assign({ len, fm, fp, net, ncpr: net / len, ct: ctOf(fm + fp, net / len), sites, next: after.concat(before),
+        rna: (xl.rna || []).filter((q) => q >= s && q <= e).length, dna: (xl.dna || []).filter((q) => q >= s && q <= e).length }, o);
+    };
+    const out = idrs.map((i) => make({ id: 'i' + i, i, s: ID.s[i], e: ID.e[i], kind: 'IDR', fl: (Rp.fl || []).filter((f) => Math.min(ID.e[i], f[2]) - Math.max(ID.s[i], f[1]) + 1 >= 10) }));
+    // acidic and basic flanks: of overlapping windows of the same kind, the best-scoring one (a union would dilute it)
+    for (const [bit, what] of [[1, 'Acidic flank'], [2, 'Basic flank']]) {
+      const sc = (f) => (bit === 1 ? f[9] : f[8]) || 0;
+      const spans = (Rp.fl || []).filter((f) => (f[10] || 0) & bit).sort((x, y) => x[1] - y[1]), groups = [];
+      for (const f of spans) { const last = groups[groups.length - 1]; if (last && f[1] <= last.end) { last.fs.push(f); last.end = Math.max(last.end, f[2]); } else groups.push({ end: f[2], fs: [f] }); }
+      const joined = groups.map((gr) => { const best = gr.fs.slice().sort((x, y) => sc(y) - sc(x))[0]; return [best[1], best[2], [best]]; });
+      for (const [a, b, fs] of joined) {
+        const inIdr = idrs.some((i) => Math.min(b, ID.e[i]) - Math.max(a, ID.s[i]) + 1 >= 0.5 * (b - a + 1));
+        if (!inIdr) out.push(make({ id: 'f' + a + '-' + b, i: null, s: a, e: b, kind: what, bit, fl: fs }));
+      }
+    }
+    return out.sort((x, y) => x.s - y.s);
+  }
+
+  // ---- the map
   function protMapSvg(ctx, o = {}) {
-    const { p, seq, Rp, S, idrs, names } = ctx, n = seq.length, exp = !!o.exp;
+    const { p, seq, Rp, S, idrs, names } = ctx, n = seq.length, exp = !!o.exp, rowsOn = mapRows();
     const pal = exp ? C.EXPORT_PAL : Object.assign(C.screenPalette(), { bg: C.cssVar('--surface') });
     const z = PV.zoom || [1, n], v0 = Math.max(1, z[0]), v1 = Math.min(n, Math.max(z[1], v0 + 10));
-    const W = o.W || 1000, ML = Math.min(150, Math.round(W * 0.2)), MR = 16;
+    const W = o.W || 1000, ML = Math.min(150, Math.round(W * 0.18)), MR = 16;
     const X = (pos) => ML + ((pos - v0) / (v1 - v0 + 1)) * (W - ML - MR);
     const cx = (pos) => Math.max(ML, Math.min(W - MR, X(pos)));
     const vis = (a, b) => b >= v0 && a <= v1;
@@ -1219,21 +1473,20 @@
     const legend = [];
     const keyOnce = (k, item) => { if (!legend.some((x) => x[2] === k)) legend.push(item.concat(k)); };
     let g = '';
-    // ---- sites: one head per kind at each residue, in levels where they would touch
+    // sites: one head per kind at each residue, in levels where they would touch
     const on = mapKinds(), ck2 = new Set((S.ck2 || []).map((v) => v[0]));
     const sites = [];
     for (const [k] of MAP_KINDS) if (on.has(k)) for (const v of S[k] || []) if (v[0] >= v0 && v[0] <= v1) sites.push({ k: k === 'ph' && ck2.has(v[0]) ? 'ck2' : k, kind: k, v, pos: v[0] });
     sites.sort((a, b) => a.pos - b.pos || MAP_KINDS.findIndex((x) => x[0] === a.kind) - MAP_KINDS.findIndex((x) => x[0] === b.kind));
     const R0 = 4.6, levels = [];
     const heads = sites.map((s) => {
-      const hx = X(s.pos);
+      const hx = X(s.pos + 0.5);
       let lv = 0;
       while (levels[lv] != null && hx - levels[lv] < 2 * R0 + 1 && lv < 11) lv++;
       levels[lv] = hx;
       return Object.assign(s, { hx, lv });
     });
     const nLv = Math.max(1, levels.length);
-    // labels: horizontal, above the heads, with leader lines; auto: up to three lines and none above 80 sites (zoom in)
     const LFS = 9.5, LINES = PV.labels === 'all' ? 10 : 3, placed = [];
     if (PV.labels !== 'none' && heads.length && (PV.labels === 'all' || heads.length <= 80)) {
       const ends = new Array(LINES).fill(-1e9), byPos = new Map();
@@ -1254,35 +1507,33 @@
     }
     const rowLab = (txt, yy, help) => { g += '<text x="0" y="' + (yy + 4) + '" font-size="' + C.fitFs(txt, 10, ML - 8, pal, 600) + '" font-weight="600" fill="' + pal.muted + '"' + (help && !exp ? ' class="row-lab" data-tip="' + esc('<b>' + esc(txt) + '</b><br>' + help) + '"' : '') + '>' + esc(txt) + '</text>'; };
     if (heads.length) rowLab('Sites', headTop + 8, 'Modification sites, one head per kind; levels stack heads that would touch. Click a head for the site.');
-    // ---- the chain: bar where ordered, wave where disordered (MobiDB), domains on it
     const dis = { list: Rp.dis || [], source: 'MobiDB' };
-    const chain = C.chainSvg(pal, X, v0, v1, base, 8, dis, (svg, a, b) => (exp ? svg : svg.replace(/\/>$/, ' class="hit" data-seg="' + a + '-' + b + '" data-what="Disordered"' + tip('<b>Disordered</b> ' + span(a, b) + ' (MobiDB)') + '/>')));
+    const chain = C.chainSvg(pal, X, v0, v1, base, 8, dis, (svg, a, b) => (exp ? svg : svg.replace(/\/>$/, ' class="hit" data-seg="' + a + '-' + b + '" data-what="Disordered"/>')));
     g += chain.bars + chain.waves;
-    rowLab('Chain', base, 'Bar: ordered; wave: disordered (MobiDB, overlapping fragments merged); boxes: InterPro domains and repeats.');
+    rowLab('Chain', base, 'Bar: ordered; wave: disordered (MobiDB); boxes: InterPro domains and repeats.');
     if (dis.list.some(([a, b]) => vis(a, b))) keyOnce('dis', [C.SWATCH.disorder(pal), 'Disordered (MobiDB)']);
     const below = [];
     for (const d of (Rp.dom || []).filter((d) => vis(d[0], d[1]))) {
       const a = cx(d[0]), w = Math.max(2, cx(d[1] + 1) - a), nm = names[d[2]] ? names[d[2]][1] : '';
-      g += C.MARK.domain(pal, a, base - 9, w, 18, false, exp ? '' : ' class="hit" data-seg="' + d[0] + '-' + d[1] + '" data-what="' + esc(nm) + '"' + tip('<b>' + esc(nm) + '</b> ' + span(d[0], d[1]) + '<br><span class="muted">InterPro 108.0</span>'));
+      g += C.MARK.domain(pal, a, base - 9, w, 18, false, exp ? '' : ' class="hit" data-seg="' + d[0] + '-' + d[1] + '" data-what="' + esc(nm) + '"');
       const lab = nm.replace(/ domain$/i, '');
       if (lab && C.textW(lab, 10, pal, 600) < w - 6) g += '<text x="' + (a + w / 2).toFixed(1) + '" y="' + (base + 3.5) + '" font-size="10" font-weight="600" text-anchor="middle" fill="' + pal.domainInk + '" pointer-events="none">' + esc(lab) + '</text>';
       else if (lab) below.push([a + w / 2, lab]);
     }
     if ((Rp.dom || []).some((d) => vis(d[0], d[1]))) keyOnce('dom', [C.SWATCH.domain(pal), 'Domain or repeat (InterPro)']);
-    // ---- heads, stems, labels
     const headY = (h) => headTop + 14 + (nLv - 1 - h.lv) * 11;
     for (const h of heads) {
       const hy = headY(h), col = tc(KCOL[h.k], exp), sel = PV.pick && PV.pick.pos === h.pos && !exp;
       g += '<line x1="' + h.hx.toFixed(1) + '" x2="' + h.hx.toFixed(1) + '" y1="' + (base - 4) + '" y2="' + hy + '" stroke="' + pal.stem + '" stroke-width="1"/>';
-      g += C.MARK.head(pal, h.hx, hy, R0, col, false, exp ? '' : ' class="site-head" data-pos="' + h.pos + '"' + tip(siteTip(ctx, h)), sel ? pal.ink : null);
+      g += C.MARK.head(pal, h.hx, hy, R0, col, false, exp ? '' : ' class="site-head" data-pos="' + h.pos + '"', sel ? pal.ink : null);
     }
     for (const q of placed) {
-      const ly = y0 + 9 + q.line * 12;
-      for (const h of q.hs.slice(0, 1)) g += '<line x1="' + h.hx.toFixed(1) + '" y1="' + (headY(h) - R0 - 1) + '" x2="' + q.lx.toFixed(1) + '" y2="' + (ly + 3) + '" stroke="' + pal.stem + '" stroke-width=".7"/>';
+      const ly = y0 + 9 + q.line * 12, h = q.hs[0];
+      g += '<line x1="' + h.hx.toFixed(1) + '" y1="' + (headY(h) - R0 - 1) + '" x2="' + q.lx.toFixed(1) + '" y2="' + (ly + 3) + '" stroke="' + pal.stem + '" stroke-width=".7"/>';
       g += '<text x="' + q.lx.toFixed(1) + '" y="' + ly + '" font-size="' + LFS + '" text-anchor="middle" fill="' + pal.ink + '">' + esc(q.text) + '</text>';
     }
-    const kindsDrawn = [...new Set(heads.map((h) => h.k))];
-    for (const k of ['mR', 'cit', 'kac', 'ub', 'sumo', 'kme', 'ph', 'ck2', 'py', 'adpr', 'glu']) if (kindsDrawn.includes(k) || (k === 'kac' && kindsDrawn.includes('kacyl'))) {
+    const kindsDrawn = new Set(heads.map((h) => h.k));
+    for (const k of ['mR', 'cit', 'kac', 'ub', 'sumo', 'kme', 'ph', 'ck2', 'py', 'adpr', 'glu']) if (kindsDrawn.has(k) || (k === 'kac' && kindsDrawn.has('kacyl'))) {
       keyOnce('k-' + k, [C.SWATCH.head(pal, tc(KCOL[k], exp), false), { mR: 'Methyl-R', cit: 'Citrulline', kac: 'Acetyl or acyl-K', ub: 'Ubiquitin-K', sumo: 'SUMO-K', kme: 'Methyl-K', ph: 'Phospho-S/T', ck2: 'Phospho-S/T, CK2-attributed', py: 'Phospho-Y', adpr: 'ADP-ribosyl', glu: 'Glutamyl' }[k]]);
     }
     let y = base + 22;
@@ -1293,85 +1544,121 @@
     }
     const grid = (yy) => { g += '<line x1="' + ML + '" x2="' + (W - MR) + '" y1="' + yy + '" y2="' + yy + '" stroke="' + pal.grid + '"/>'; };
     const box = (a, b, yy, h, fill, attr, extra) => '<rect x="' + cx(a).toFixed(1) + '" y="' + (yy - h / 2).toFixed(1) + '" width="' + Math.max(1.5, cx(b + 1) - cx(a)).toFixed(1) + '" height="' + h + '" rx="2" fill="' + fill + '"' + (extra || '') + (exp ? '' : attr) + '/>';
-    // ---- flank rows: each flank shaded by its percentile, solid in the top tenth
-    const flRow = (label, zi, pi, bit, col, what) => {
-      const list = (Rp.fl || []).filter((f) => vis(f[1], f[2]));
-      if (!(Rp.fl || []).length) return;
-      rowLab(label, y, 'The residues beside each domain edge (up to 50), shaded by the ' + what + ' score’s percentile among all flanks; solid: top tenth (an ' + what + ' flank).');
-      grid(y);
-      for (const f of list) {
-        const top = (f[10] || 0) & bit, pc = f[pi], op = top ? 0.95 : pc == null ? 0.06 : Math.max(0.06, (pc / 1000 - 0.5) * 1.1);
-        g += box(f[1], f[2], y, 10, tc(col, exp), ' class="hit" data-seg="' + f[1] + '-' + f[2] + '" data-what="' + (f[0] ? 'C' : 'N') + '-side flank of ' + f[3] + '–' + f[4] + '"' +
-          tip('<b>' + (f[0] ? 'C' : 'N') + '-side flank ' + f[1] + '–' + f[2] + '</b> (domain ' + f[3] + '–' + f[4] + ')<br>' + what + ' score ' + fz(f[zi]) + ' z, percentile ' + (pc == null ? '—' : (pc / 10).toFixed(1)) + (top ? ' · <b>' + what + ' flank</b> (top tenth)' : '') +
-            (f[12] ? '<br>Das–Pappu ' + REGION_SHORT[f[12]] + (f[11] != null ? ', κ ' + f3(f[11]) : '') : '')), ' fill-opacity="' + op.toFixed(2) + '" stroke="' + tc(col, exp) + '" stroke-opacity="' + (top ? 1 : 0.45) + '" stroke-width="' + (top ? 1.2 : 0.6) + '"');
+    const tick = (pos, yy, h, fill, attr) => '<rect x="' + (X(pos + 0.5) - 1).toFixed(1) + '" y="' + (yy - h / 2) + '" width="2" height="' + h + '" fill="' + fill + '"' + (exp ? '' : attr || '') + '/>';
+    const label = (a, b, yy, text, fill) => { const w = cx(b + 1) - cx(a); if (text && C.textW(text, 9, pal) < w - 6) g += '<text x="' + (cx(a) + 3).toFixed(1) + '" y="' + (yy + 3.2) + '" font-size="9" fill="' + fill + '" pointer-events="none">' + esc(text) + '</text>'; };
+    // UniProt regions, motifs and compositional bias (read live)
+    const uni = ctx.uni && ctx.uni.feats ? ctx.uni.feats.filter((f) => ['Region', 'Motif', 'Compositional bias'].includes(f.type) && f.desc !== 'Disordered') : [];
+    if (rowsOn.has('uni') && uni.length) {
+      // packed onto up to four lanes; a label sits inside its box, else after it, else (no room) only in the tooltip
+      const items = uni.filter((f) => vis(f.start, f.end)).sort((a, b) => a.start - b.start || b.end - a.end), lanes = [];
+      for (const f of items) {
+        const a = cx(f.start), b = cx(f.end + 1), tw = C.textW(f.desc, 9, pal) + 8, inside = tw < b - a;
+        const reach = (lab) => (lab && !inside ? b + tw : b);
+        let k = lanes.findIndex((r) => r < a - 2);
+        if (k < 0 && lanes.length < 4) { lanes.push(-1e9); k = lanes.length - 1; }
+        f.lab = k >= 0 && (inside || b + tw < W - MR);
+        if (k < 0) { k = lanes.indexOf(Math.min(...lanes)); f.lab = false; }
+        lanes[k] = Math.max(lanes[k], reach(f.lab));
+        f.lane = k;
       }
-      y += 18;
-    };
-    flRow('Basic flanks', 5, 8, 2, 'basic', 'basic');
-    flRow('Acidic flanks', 6, 9, 1, 'acidic', 'acidic');
-    if ((Rp.fl || []).some((f) => vis(f[1], f[2]))) { keyOnce('flb', [C.SWATCH.fill(tc('basic', exp)), 'Basic flank (solid: top tenth)']); keyOnce('fla', [C.SWATCH.fill(tc('acidic', exp)), 'Acidic flank (solid: top tenth)']); }
-    // ---- net charge: 5-residue mean, up basic, down acidic
-    {
-      const H = 30, mid = y + 2, bins = Math.min(v1 - v0 + 1, 500), bw = (W - ML - MR) / bins;
-      rowLab('Net charge', mid, 'Net charge of the 5 residues around each position (K, R +1; D, E −1; H +0.5), up basic, down acidic.');
-      g += '<line x1="' + ML + '" x2="' + (W - MR) + '" y1="' + mid + '" y2="' + mid + '" stroke="' + pal.grid + '"/>';
-      const prof = chargeProfile(seq.slice(v0 - 1, v1), bins);
-      prof.forEach((v, b) => { if (!v) return; const hh = Math.abs(v) * H / 2; g += '<rect x="' + (ML + b * bw).toFixed(1) + '" y="' + (v > 0 ? mid - hh : mid).toFixed(1) + '" width="' + (bw + 0.2).toFixed(2) + '" height="' + hh.toFixed(1) + '" fill="' + tc(v > 0 ? 'basic' : 'acidic', exp) + '"/>'; });
-      y += H / 2 + 16;
+      rowLab('Regions', y, 'Regions, motifs and compositional bias from the UniProt entry, read live.');
+      for (const f of items) {
+        const yy = y + f.lane * 13;
+        g += box(f.start, f.end, yy, 10, f.type === 'Motif' ? pal.bg : tc('region', exp), ' class="hit" data-seg="' + f.start + '-' + f.end + '" data-what="' + esc(f.desc) + '"', f.type === 'Motif' ? ' stroke="' + pal.muted + '"' : '');
+        const w = cx(f.end + 1) - cx(f.start);
+        if (f.lab) g += '<text x="' + (cx(f.start) + (C.textW(f.desc, 9, pal) + 8 < w ? 3 : w + 3)).toFixed(1) + '" y="' + (yy + 3.2) + '" font-size="9" fill="' + pal.ink + '" pointer-events="none">' + esc(f.desc) + '</text>';
+      }
+      if (items.length) keyOnce('uni', [C.SWATCH.fill(tc('region', exp)), 'Region (UniProt)']);
+      y += 20 + Math.max(0, lanes.length - 1) * 13;
     }
-    // ---- IDR class: each IDR in its Das–Pappu colour, with κ
-    if (idrs.length) {
-      rowLab('IDR class', y, 'Each IDR (MobiDB, ≥ ' + OV.settings.min_idr + ' aa) coloured by its Das–Pappu class (localCIDER): R1 weak polyampholyte, R2 Janus, R3 strong polyampholyte, R4 and R5 strong polyelectrolytes, negative and positive. Click for its sequence and parameters.');
+    // net charge: 5-residue mean, up basic, down acidic
+    if (rowsOn.has('charge')) {
+      const Hc = 34, mid = y + 4, bins = Math.min(v1 - v0 + 1, 500), bw = (W - ML - MR) / bins;
+      rowLab('Net charge', mid, 'Net charge of the 5 residues around each position (K, R +1; D, E −1; H +0.5): up basic, down acidic.');
+      g += '<line x1="' + ML + '" x2="' + (W - MR) + '" y1="' + mid + '" y2="' + mid + '" stroke="' + pal.grid + '"/>';
+      chargeProfile(seq.slice(v0 - 1, v1), bins).forEach((v, b) => { if (!v) return; const hh = Math.abs(v) * Hc / 2; g += '<rect x="' + (ML + b * bw).toFixed(1) + '" y="' + (v > 0 ? mid - hh : mid).toFixed(1) + '" width="' + (bw + 0.2).toFixed(2) + '" height="' + hh.toFixed(1) + '" fill="' + tc(v > 0 ? 'basic' : 'acidic', exp) + '"/>'; });
+      y += Hc / 2 + 18;
+    }
+    // IDRs coloured by charge, labelled with their net charge
+    if (rowsOn.has('idr') && idrs.length) {
+      rowLab('IDRs', y, 'Each disordered region (≥ ' + OV.settings.min_idr + ' aa) coloured by its charge: acidic (net charge ≤ −0.10 per residue), basic (≥ +0.10), mixed (a quarter or more charged, balanced), or few charges; labelled with its net charge. Click one for its sequence.');
       grid(y);
       for (const i of idrs.filter((i) => vis(ID.s[i], ID.e[i]))) {
-        const r = ID.reg[i] || 1, a = cx(ID.s[i]), w = Math.max(1.5, cx(ID.e[i] + 1) - a), lab = 'R' + r + (ID.kap[i] != null ? ' κ ' + (ID.kap[i] / 1000).toFixed(2) : '');
-        g += box(ID.s[i], ID.e[i], y, 12, tc('dp' + r, exp), ' class="hit" data-seg="' + ID.s[i] + '-' + ID.e[i] + '" data-idr="' + i + '" data-what="IDR"' + tip(idrTip(i)), ID.dz[i] >= OV.settings.blocky_z * 100 ? ' stroke="' + pal.ink + '" stroke-width="1.2"' : '');
-        if (C.textW(lab, 9, pal) < w - 6) g += '<text x="' + (a + 3).toFixed(1) + '" y="' + (y + 3.2) + '" font-size="9" fill="#fff" pointer-events="none">' + esc(lab) + '</text>';
+        const t = ID.ct[i];
+        g += box(ID.s[i], ID.e[i], y, 13, tc(CT_COL[t], exp), ' class="hit" data-seg="' + ID.s[i] + '-' + ID.e[i] + '" data-idr="' + i + '" data-what="IDR"', t === 1 ? ' fill-opacity="0.35"' : '');
+        label(ID.s[i], ID.e[i], y, fsign(netOf(i), 0), t === 1 ? pal.ink : '#fff');
       }
-      for (const r of [...new Set(idrs.map((i) => ID.reg[i] || 1))].sort()) keyOnce('dp' + r, [C.SWATCH.fill(tc('dp' + r, exp)), 'IDR, R' + r + ' ' + REGION[r].toLowerCase()]);
-      if (idrs.some((i) => ID.dz[i] >= OV.settings.blocky_z * 100)) keyOnce('blocky', [(x, yy) => '<rect x="' + x + '" y="' + (yy - 5) + '" width="20" height="10" rx="2" fill="none" stroke="' + pal.ink + '" stroke-width="1.2"/>', 'Blocky IDR (δ z ≥ ' + OV.settings.blocky_z + ')']);
+      for (const t of [3, 4, 2, 1]) if (idrs.some((i) => ID.ct[i] === t)) keyOnce('ct' + t, [C.SWATCH.fill(tc(CT_COL[t], exp), t === 1 ? 0.35 : null), 'IDR, ' + CT[t].toLowerCase()]);
       y += 20;
     }
-    // ---- sequence elements, one row for the three (they rarely overlap; RG clusters drawn last, thinner)
-    const els = [['as', 'acidic', 'Acidic stretch'], ['bp', 'basic', 'Basic patch'], ['rg', 'rg', 'RG/RGG cluster']];
-    if (els.some(([k]) => (Rp[k] || []).length)) {
-      rowLab('Elements', y, 'Acidic stretches (red), basic patches (blue, net +3 or more in 10 residues) and RG/RGG clusters (pink), from idrkit.');
+    // acidic and basic flanks: the top tenth by each score, solid
+    const tops = (Rp.fl || []).filter((f) => (f[10] || 0) && vis(f[1], f[2]));
+    if (rowsOn.has('flank') && (Rp.fl || []).some((f) => f[10])) {
+      rowLab('Flanks', y, 'Domain flanks in the top tenth of all flanks by the acidic (red) or basic (blue) score: the acidic and basic flanks. Click one for its sequence.');
       grid(y);
-      for (const [k, col, what] of els) for (const d of (Rp[k] || []).filter((d) => vis(d[0], d[1]))) {
-        g += box(d[0], d[1], y, k === 'rg' ? 6 : 10, tc(col, exp), ' class="hit" data-seg="' + d[0] + '-' + d[1] + '" data-what="' + what + '"' + tip('<b>' + what + '</b> ' + span(d[0], d[1])), k === 'rg' ? ' stroke="' + tc('rg-ink', exp) + '" stroke-width="0.6"' : ' fill-opacity="0.75"');
-        keyOnce('el-' + k, [C.SWATCH.fill(tc(col, exp), k === 'rg' ? null : 0.75), what]);
+      for (const f of tops) for (const [bit, col, what] of [[1, 'acidic', 'Acidic flank'], [2, 'basic', 'Basic flank']]) if (f[10] & bit) {
+        g += box(f[1], f[2], y + (f[10] === 3 ? (bit === 1 ? -3 : 3) : 0), f[10] === 3 ? 6 : 10, tc(col, exp), ' class="hit" data-seg="' + f[1] + '-' + f[2] + '" data-what="' + what + ' (' + (f[0] ? 'after' : 'before') + ' the domain at ' + f[3] + '–' + f[4] + ')"');
+        keyOnce('fl' + bit, [C.SWATCH.fill(tc(col, exp)), what]);
       }
       y += 18;
     }
-    // ---- strong CK2 motifs with no phosphosite on record
-    if ((S.ck2m || []).length) {
+    // sequence elements on one row
+    const els = [['as', 'acidic', 'Acidic stretch'], ['bp', 'basic', 'Basic patch'], ['rg', 'rg', 'RG/RGG cluster']];
+    if (rowsOn.has('el') && els.some(([k]) => (Rp[k] || []).length)) {
+      rowLab('Elements', y, 'Acidic stretches (red), basic patches (blue: net charge +3 or more in 10 residues) and RG/RGG clusters (pink), from idrkit.');
+      grid(y);
+      for (const [k, col, what] of els) for (const d of (Rp[k] || []).filter((d) => vis(d[0], d[1]))) {
+        g += box(d[0], d[1], y, k === 'rg' ? 6 : 10, tc(col, exp), ' class="hit" data-seg="' + d[0] + '-' + d[1] + '" data-what="' + what + '"', k === 'rg' ? ' stroke="' + tc('rg-ink', exp) + '" stroke-width="0.6"' : ' fill-opacity="0.6"');
+        keyOnce('el-' + k, [C.SWATCH.fill(tc(col, exp), k === 'rg' ? null : 0.6), what]);
+      }
+      y += 18;
+    }
+    // RNA and DNA binding in living cells (the Methylarginine Site Explorer's compilation)
+    const xl = ctx.xl || {};
+    if (rowsOn.has('rna') && ((xl.rna || []).length || (xl.rpep || []).length)) {
+      rowLab('RNA in cells', y, 'Residues UV-crosslinked to RNA in living cells (ticks: Kramer 2014, XRNAX, RBS-ID, pRBS-ID, pepR-MS compendium) and RNA-bound stretches (boxes: RBDmap fragments, CAPRI and pCLAP peptides, RBR-ID+ stretches), as the Methylarginine Site Explorer compiles them.');
+      grid(y);
+      for (const [a, b, k] of (xl.rpep || []).filter((x) => vis(x[0], x[1]))) g += box(a, b, y, 10, tc('rna', exp), ' class="hit" data-seg="' + a + '-' + b + '" data-what="RNA-bound ' + XL_PEP[k] + '"', ' fill-opacity="0.22"');
+      for (const q of (xl.rna || []).filter((q) => q >= v0 && q <= v1)) g += tick(q, y, 14, tc('rna', exp));
+      keyOnce('rna', [C.SWATCH.tick(tc('rna', exp)), 'RNA crosslink in cells (box: RNA-bound stretch)']);
+      y += 18;
+    }
+    if (rowsOn.has('dna') && ((xl.dna || []).length || (xl.dpep || []).length || (xl.db || []).length)) {
+      rowLab('DNA in cells', y, 'Residues and peptides crosslinked to DNA in cells (Trendel et al. 2025), and UniProt DNA-binding regions (outlined).');
+      grid(y);
+      for (const [a, b] of (xl.db || []).filter((x) => vis(x[0], x[1]))) g += box(a, b, y, 12, 'none', ' class="hit" data-seg="' + a + '-' + b + '" data-what="DNA-binding region (UniProt)"', ' stroke="' + tc('dna', exp) + '" stroke-width="1.2"');
+      for (const [a, b] of (xl.dpep || []).filter((x) => vis(x[0], x[1]))) g += box(a, b, y, 10, tc('dna', exp), ' class="hit" data-seg="' + a + '-' + b + '" data-what="DNA-crosslinked peptide"', ' fill-opacity="0.3"');
+      for (const q of (xl.dna || []).filter((q) => q >= v0 && q <= v1)) g += tick(q, y, 14, tc('dna', exp));
+      keyOnce('dna', [C.SWATCH.tick(tc('dna', exp)), 'DNA crosslink in cells (outline: UniProt DNA-binding region)']);
+      y += 18;
+    }
+    // AlphaFold confidence along the chain (read live)
+    if (rowsOn.has('plddt') && ctx.af && ctx.af.plddt && ctx.af.plddt.size) {
+      rowLab('AlphaFold', y, 'AlphaFold DB model confidence (pLDDT) along the chain, read live: blue confident, yellow and orange low (often disorder).');
+      const bins = Math.min(v1 - v0 + 1, 600), bw = (W - ML - MR) / bins;
+      for (let b = 0; b < bins; b++) { const pos = Math.round(v0 + (b + 0.5) * (v1 - v0 + 1) / bins), v = ctx.af.plddt.get(pos); if (v != null) g += '<rect x="' + (ML + b * bw).toFixed(1) + '" y="' + (y - 5) + '" width="' + (bw + 0.3).toFixed(2) + '" height="10" fill="' + plddtCol(v) + '"/>'; }
+      keyOnce('af', [(x2, y2) => PLDDT.map((b, k) => '<rect x="' + (x2 + k * 5) + '" y="' + (y2 - 5) + '" width="5" height="10" fill="' + b[1] + '"/>').join(''), 'AlphaFold pLDDT (blue high, orange low)']);
+      y += 18;
+    }
+    if (rowsOn.has('ck2m') && (S.ck2m || []).length) {
       rowLab('CK2 motifs', y, 'Serines and threonines CK2 scores at the 99th percentile or above (Johnson et al. 2023) with no phosphosite on record: candidates.');
       grid(y);
-      for (const v of S.ck2m.filter((v) => v[0] >= v0 && v[0] <= v1)) g += C.MARK.head(pal, X(v[0]), y, 3.6, tc('ck2', exp), true, exp ? '' : ' class="site-head" data-pos="' + v[0] + '"' + tip('<b>' + residueName(seq, v[0]) + '</b>: CK2 percentile ' + v[1] + ', no phosphosite reported'));
+      for (const v of S.ck2m.filter((v) => v[0] >= v0 && v[0] <= v1)) g += C.MARK.head(pal, X(v[0] + 0.5), y, 3.6, tc('ck2', exp), true, exp ? '' : ' class="site-head" data-pos="' + v[0] + '"');
       keyOnce('ck2m', [C.SWATCH.head(pal, tc('ck2', exp), true), 'Strong CK2 motif, no site reported']);
       y += 18;
     }
-    // ---- the highlighted stretch (from a table row or a link), the axis
     const hl = PV.hl;
-    if (hl && vis(hl[0], hl[1]) && !exp) g = '<rect x="' + cx(hl[0]).toFixed(1) + '" y="' + headTop + '" width="' + Math.max(2, cx(hl[1] + 1) - cx(hl[0])).toFixed(1) + '" height="' + (y - headTop) + '" fill="' + pal.accent + '" fill-opacity="0.09" stroke="' + pal.accent + '" stroke-opacity="0.5"/>' + g;
+    if (hl && vis(hl[0], hl[1]) && !exp) g = '<rect x="' + cx(hl[0]).toFixed(1) + '" y="' + headTop + '" width="' + Math.max(2, cx(hl[1] + 1) - cx(hl[0])).toFixed(1) + '" height="' + (y - headTop) + '" fill="' + pal.accent + '" fill-opacity="0.08" stroke="' + pal.accent + '" stroke-opacity="0.45"/>' + g;
     const step = [5, 10, 20, 50, 100, 200, 250, 500, 1000, 2000, 5000].find((s) => (v1 - v0) / s <= 10) || 10000;
     g += '<line x1="' + ML + '" x2="' + (W - MR) + '" y1="' + y + '" y2="' + y + '" stroke="' + pal.muted + '"/>';
-    for (let t = Math.ceil(v0 / step) * step; t <= v1; t += step) g += '<line x1="' + X(t).toFixed(1) + '" x2="' + X(t).toFixed(1) + '" y1="' + y + '" y2="' + (y + 4) + '" stroke="' + pal.muted + '"/><text x="' + X(t).toFixed(1) + '" y="' + (y + 15) + '" font-size="10" text-anchor="middle" fill="' + pal.muted + '">' + t + '</text>';
+    for (let t = Math.ceil(v0 / step) * step; t <= v1; t += step) g += '<line x1="' + X(t + 0.5).toFixed(1) + '" x2="' + X(t + 0.5).toFixed(1) + '" y1="' + y + '" y2="' + (y + 4) + '" stroke="' + pal.muted + '"/><text x="' + X(t + 0.5).toFixed(1) + '" y="' + (y + 15) + '" font-size="10" text-anchor="middle" fill="' + pal.muted + '">' + t + '</text>';
     y += 24;
     let H = y;
     if (exp) { const lg = C.svgLegend(pal, legend.map(([d, l]) => [d, l]), 0, y + 4, W - MR, { fs: 10 }); g += lg.svg; H = Math.ceil(y + lg.h + 14); }
+    else g += '<line id="xhair" x1="0" x2="0" y1="' + headTop + '" y2="' + (y - 24) + '" stroke="' + pal.ink + '" stroke-opacity="0.35" visibility="hidden" pointer-events="none"/>';
     return { W, H, v0, v1, x0: ML, x1: W - MR, len: n, legend,
       svg: '<svg xmlns="http://www.w3.org/2000/svg" class="pmap" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" font-family=\'' + (pal.font || C.EXPORT_PAL.font).replace(/'/g, '"') + '\' role="img" aria-label="' + esc('Protein map of ' + geneOf(p)) + '">' +
         (exp ? '<rect width="' + W + '" height="' + H + '" fill="' + pal.bg + '"/>' : '') + g + '</svg>' };
-  }
-  const srcText = (v) => srcNames(v[1]) + (v[2] ? ', PTMeXchange ' + CONF[v[2]] : '');
-  function siteTip(ctx, h) {
-    const v = h.v, name = { mR: 'methyl-R', cit: 'citrulline', kac: 'acetyl-K', kacyl: 'acidic acyl-K', ub: 'ubiquitin-K', sumo: 'SUMO-K', kme: 'methyl-K', ph: 'phospho', py: 'phospho-Y', adpr: 'ADP-ribosyl', glu: 'glutamyl' }[h.kind];
-    return '<b>' + residueName(ctx.seq, h.pos) + ' ' + name + (h.k === 'ck2' ? ' (CK2)' : '') + '</b><br>' + esc(srcText(v)) + '<br><span class="muted">Click for the site</span>';
-  }
-  function idrTip(i) {
-    return '<b>IDR ' + ID.s[i] + '–' + ID.e[i] + '</b> (' + (ID.e[i] - ID.s[i] + 1) + ' aa)<br>Das–Pappu ' + REGION_SHORT[ID.reg[i] || 1] + '<br>FCR ' + f3(ID.fcr[i]) + ', NCPR ' + f3(ID.ncpr[i]) +
-      (ID.kap[i] != null ? ', κ ' + f3(ID.kap[i]) : '') + (ID.om[i] != null ? ', Ω ' + f3(ID.om[i]) : '') + '<br>δ z ' + fz(ID.dz[i]) + (ID.dz[i] >= OV.settings.blocky_z * 100 ? ' (blocky)' : '');
   }
   const EMBOSS = { K: 1, R: 1, H: 0.5, D: -1, E: -1 };
   function chargeProfile(seq, bins) {
@@ -1381,17 +1668,93 @@
     for (let b = 0; b < bins; b++) { const a = Math.floor(b * n / bins), e = Math.max(a + 1, Math.floor((b + 1) * n / bins)); let s = 0; for (let i = a; i < e; i++) s += m[i]; out.push(s / (e - a)); }
     return out;
   }
-  // a stretch of sequence coloured by charge, modified residues underlined, one residue picked
-  function seqHtml(ctx, s, e, pick) {
+  // everything recorded at one residue: the read-out under the pointer
+  function residueReadout(ctx, pos) {
+    const { seq, Rp, S, idrs, names } = ctx, out = ['<b>' + residueName(seq, pos) + '</b>'];
+    const i = idrs.find((k) => ID.s[k] <= pos && ID.e[k] >= pos);
+    if (i != null) out.push('IDR ' + ID.s[i] + '–' + ID.e[i] + ': ' + CT[ID.ct[i]].toLowerCase() + ', net ' + fsign(netOf(i), 0) + ', Das–Pappu ' + REGION_SHORT[ID.reg[i] || 1]);
+    else if ((Rp.dis || []).some(([a, b]) => a <= pos && b >= pos)) out.push('Disordered (MobiDB), in a stretch under ' + OV.settings.min_idr + ' residues');
+    for (const d of Rp.dom || []) if (d[0] <= pos && d[1] >= pos) out.push(esc(names[d[2]] ? names[d[2]][1] : 'Domain') + ' ' + d[0] + '–' + d[1]);
+    for (const f of Rp.fl || []) if ((f[10] || 0) && f[1] <= pos && f[2] >= pos) out.push(((f[10] & 1) ? 'Acidic' : '') + (f[10] === 3 ? ' and basic' : (f[10] & 2) ? 'Basic' : '') + ' flank ' + f[1] + '–' + f[2]);
+    for (const [k, l] of [['as', 'Acidic stretch'], ['bp', 'Basic patch'], ['rg', 'RG/RGG cluster']]) for (const d of Rp[k] || []) if (d[0] <= pos && d[1] >= pos) out.push(l + ' ' + d[0] + '–' + d[1]);
+    if (ctx.uni && ctx.uni.feats) { const u = ctx.uni.feats.filter((f) => ['Region', 'Motif', 'Compositional bias'].includes(f.type) && f.desc !== 'Disordered' && f.start <= pos && f.end >= pos).map((f) => f.desc); if (u.length) out.push('UniProt: ' + esc(u.slice(0, 3).join(' · '))); }
+    const here = [];
+    for (const [k, l] of MAP_KINDS) for (const v of S[k] || []) if (v[0] === pos) here.push(esc(l) + ' <span class="muted">(' + esc(srcText(v)) + ')</span>');
+    if (here.length) out.push(here.join('<br>'));
+    const xl = ctx.xl || {};
+    if ((xl.rna || []).includes(pos)) out.push('RNA crosslink in cells');
+    if ((xl.dna || []).includes(pos)) out.push('DNA crosslink in cells');
+    if (ctx.af && ctx.af.plddt && ctx.af.plddt.get(pos) != null) out.push('AlphaFold pLDDT ' + ctx.af.plddt.get(pos).toFixed(0));
+    let ch = 0;
+    for (let k = Math.max(1, pos - 2); k <= Math.min(seq.length, pos + 2); k++) ch += RES_Q[seq[k - 1]] || 0;
+    out.push('<span class="muted">Net charge of residues ' + Math.max(1, pos - 2) + '–' + Math.min(seq.length, pos + 2) + ': ' + fsign(ch, 0) + '</span>');
+    return out.join('<br>');
+  }
+  // a stretch coloured by charge, modified residues underlined; mods: Map(pos -> new charge) shows a what-if
+  function seqHtml(ctx, s, e, o = {}) {
     const marks = new Map();
     for (const k of Object.keys(ctx.S)) if (k !== 'ck2m' && k !== 'ck2') for (const v of ctx.S[k]) { if (!marks.has(v[0])) marks.set(v[0], []); marks.get(v[0]).push(k); }
     let html = '';
     for (let i = s; i <= e; i++) {
-      const c = ctx.seq[i - 1], cls = ('KR'.includes(c) ? 'b' : 'DE'.includes(c) ? 'a' : '') + (marks.has(i) ? ' s' : '') + (i === pick ? ' pick' : '');
-      html += cls.trim() ? '<span class="' + cls.trim() + '" data-tip="' + esc(c + i + (marks.has(i) ? ': ' + marks.get(i).map(kindLabel).join(', ') : '')) + '">' + c + '</span>' : c;
-      if ((i - s + 1) % 10 === 0 && i < e) html += (i - s + 1) % 60 === 0 ? '<br>' : ' ';
+      const c = ctx.seq[i - 1], q = o.mods && o.mods.has(i) ? o.mods.get(i) : RES_Q[c] || 0;
+      const cls = (q > 0 ? 'b' : q < 0 ? 'a' : '') + (marks.has(i) ? ' s' : '') + (o.mods && o.mods.has(i) ? ' m' : '') + (i === o.pick ? ' pick' : '');
+      if ((i - s) % 60 === 0) html += (i > s ? '<br>' : '') + '<span class="n">' + String(i).padStart(5, ' ') + '</span> ';
+      html += cls.trim() || marks.has(i) ? '<span class="' + cls.trim() + '" data-tip="' + esc(c + i + (marks.has(i) ? ': ' + marks.get(i).map(kindLabel).join(', ') : '') + (o.mods && o.mods.has(i) ? ' · charge ' + fsign(o.mods.get(i), 0) + ' when modified' : '')) + '">' + c + '</span>' : c;
+      if ((i - s + 1) % 10 === 0 && (i - s + 1) % 60 !== 0 && i < e) html += ' ';
     }
     return '<div class="seq">' + html + '</div>';
+  }
+  // a net-charge profile of a segment, before (grey) and after (colour) its checked modifications
+  function segProfile(ctx, sg, mods) {
+    const W = 600, H = 70, s = sg.s, e = sg.e, n = e - s + 1;
+    const q0 = [], q1 = [];
+    for (let i = s; i <= e; i++) { const c = ctx.seq[i - 1], a = RES_Q[c] || 0; q0.push(a); q1.push(mods.has(i) ? mods.get(i) : a); }
+    const sm = (q) => q.map((_, i) => { let t = 0, k = 0; for (let j = Math.max(0, i - 2); j <= Math.min(n - 1, i + 2); j++) { t += q[j]; k++; } return t / k; });
+    const a = sm(q0), b = sm(q1), X = (i) => 4 + (i + 0.5) / n * (W - 8), Y = (v) => H / 2 - v * (H / 2 - 4) / 2;
+    const path = (v) => v.map((x, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(x).toFixed(1)).join('');
+    const area = (v, sign) => 'M' + X(0).toFixed(1) + ' ' + Y(0) + v.map((x, i) => 'L' + X(i).toFixed(1) + ' ' + Y(sign * x > 0 ? x : 0).toFixed(1)).join('') + 'L' + X(n - 1).toFixed(1) + ' ' + Y(0) + 'Z';
+    return '<svg class="segprof" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Net charge along the segment">' +
+      '<line x1="0" x2="' + W + '" y1="' + Y(0) + '" y2="' + Y(0) + '" class="sp-zero"/><path d="' + area(b, 1) + '" class="sp-b"/><path d="' + area(b, -1) + '" class="sp-a"/>' +
+      (mods.size ? '<path d="' + path(a) + '" class="sp-before"/>' : '') + '</svg>';
+  }
+  function segCard(ctx, sg) {
+    const i = sg.i, isIdr = i != null;
+    const changeable = sg.sites.filter((x) => modQ(x.k, ctx.seq[x.pos - 1]) != null);
+    const fl = isIdr ? sg.fl.filter((f) => f[10]).map((f) => ((f[10] & 1) ? 'acidic' : '') + (f[10] === 3 ? ' and basic' : (f[10] & 2) ? 'basic' : '') + ' flank ' + f[1] + '–' + f[2]) : [];
+    const score = !isIdr ? sg.kind.split(' ')[0].toLowerCase() + ' score ' + pctTop(Math.max(...sg.fl.map((f) => (sg.bit === 1 ? f[9] : f[8]) || 0))) + ' of all flanks' : '';
+    const kinds = {};
+    for (const x of sg.sites) kinds[x.k] = (kinds[x.k] || 0) + 1;
+    return '<div class="seg-card' + (isIdr ? '' : ' seg-flank') + '" id="seg-' + sg.id + '"><div class="seg-head"><div><h4>' + ctChip(sg.ct) + ' ' + (isIdr ? dpChip(ID.reg[i]) + ' ' : '') + esc(sg.kind) + ' ' + sg.s + '–' + sg.e + ' <span class="muted">· ' + sg.len + ' aa</span></h4>' +
+      '<p class="sub">' + chargeCell(sg.fm, sg.fp, sg.ncpr, sg.ct) + ' net charge <b>' + fsign(sg.net, 0) + '</b>' + (isIdr && rankText(i) ? ' · ' + rankText(i) : '') + (score ? ' · ' + score : '') +
+      (isIdr && ID.kap[i] != null ? ' · charge segregation κ ' + f3(ID.kap[i]) : '') + (sg.next.length ? ' · ' + esc(sg.next.join('; ')) : '') + (fl.length ? ' · ' + esc(fl.join('; ')) : '') +
+      (!isIdr ? ' · <span class="muted">a domain flank, not an IDR of ' + OV.settings.min_idr + ' or more residues</span>' : '') +
+      (sg.rna ? ' · ' + sg.rna + ' RNA-crosslinked residue' + (sg.rna > 1 ? 's' : '') : '') + (sg.dna ? ' · ' + sg.dna + ' DNA-crosslinked' : '') + '</p></div>' +
+      '<div class="exp"><button type="button" data-segzoom="' + sg.s + '-' + sg.e + '">Show on the map</button><button type="button" data-segcopy="' + sg.s + '-' + sg.e + '">Copy sequence</button></div></div>' +
+      '<div class="seg-seq" data-seq>' + seqHtml(ctx, sg.s, sg.e) + '</div>' +
+      '<div class="seg-prof" data-prof>' + segProfile(ctx, sg, new Map()) + '</div>' +
+      (sg.sites.length ? '<div class="seg-mods"><span class="flabel">Its ' + sg.sites.length + ' modification site' + (sg.sites.length > 1 ? 's' : '') + '</span> ' +
+        Object.entries(kinds).map(([k, c]) => '<i class="kdot" style="background:var(--' + KCOL[k] + ')"></i>' + c + ' ' + esc(kindLabel(k))).join(' · ') +
+        (changeable.length ? '<div class="whatif"><span class="flabel">What if they were modified?</span> <button class="btn quiet small" type="button" data-modall>All ' + changeable.length + '</button><button class="btn quiet small" type="button" data-modnone>None</button><span class="wi-out" data-out></span><div class="wi-list">' +
+          changeable.map((x) => '<label class="check" data-tip="' + esc(kindLabel(x.k) + ' at ' + residueName(ctx.seq, x.pos) + ': charge ' + fsign(RES_Q[ctx.seq[x.pos - 1]] || 0, 0) + ' → ' + fsign(modQ(x.k, ctx.seq[x.pos - 1]), 0) + ' (' + srcText(x.v) + ')') + '"><input type="checkbox" data-mod="' + x.pos + ':' + x.k + '"> <i class="kdot" style="background:var(--' + KCOL[x.k] + ')"></i>' + residueName(ctx.seq, x.pos) + '</label>').join('') + '</div></div>' :
+          '<p class="note">None of them changes charge in this model (methylation keeps it; ubiquitin and SUMO attach a protein).</p>') + '</div>' : '<p class="note">No modification site reported here.</p>') + '</div>';
+  }
+  function bindSegCard(ctx, el, sg) {
+    const out = $('[data-out]', el);
+    const update = () => {
+      const mods = new Map();
+      for (const cb of $$('[data-mod]', el)) if (cb.checked) { const [pos, k] = cb.dataset.mod.split(':'); mods.set(+pos, modQ(k, ctx.seq[+pos - 1])); }
+      let net1 = 0, charged = 0;
+      for (let k = sg.s; k <= sg.e; k++) { const q = mods.has(k) ? mods.get(k) : RES_Q[ctx.seq[k - 1]] || 0; net1 += q; if (q) charged++; }
+      const ncpr1 = net1 / sg.len, t1 = ctOf(charged / sg.len, ncpr1);
+      if (out) out.innerHTML = mods.size ? 'net charge <b>' + fsign(sg.net, 0) + ' → ' + fsign(net1, 0) + '</b> (' + fsign(sg.ncpr, 2) + ' → ' + fsign(ncpr1, 2) + ' per residue)' + (t1 !== sg.ct ? ': ' + CT[sg.ct].toLowerCase() + ' → <b>' + CT[t1].toLowerCase() + '</b>' : ', still ' + CT[t1].toLowerCase()) : '';
+      $('[data-seq]', el).innerHTML = seqHtml(ctx, sg.s, sg.e, { mods });
+      $('[data-prof]', el).innerHTML = segProfile(ctx, sg, mods);
+    };
+    $$('[data-mod]', el).forEach((cb) => cb.addEventListener('change', update));
+    const all = $('[data-modall]', el), none = $('[data-modnone]', el);
+    if (all) all.addEventListener('click', () => { $$('[data-mod]', el).forEach((cb) => { cb.checked = true; }); update(); });
+    if (none) none.addEventListener('click', () => { $$('[data-mod]', el).forEach((cb) => { cb.checked = false; }); update(); });
+    $('[data-segcopy]', el).addEventListener('click', (e) => { try { navigator.clipboard.writeText(ctx.seq.slice(sg.s - 1, sg.e)); e.currentTarget.textContent = 'Copied'; } catch (err) { /* no clipboard */ } });
   }
   // the panel under the map: a site (its kinds, sources, motifs, occupancy and where it sits) or a stretch
   function pickPanel(ctx) {
@@ -1400,40 +1763,43 @@
     if (!pk) { box.hidden = true; return; }
     box.hidden = false;
     const { seq, S, Rp, idrs } = ctx, n = seq.length;
-    const close = '<button class="btn quiet small" type="button" id="pick-close">Close</button>';
-    const zoomBtn = (a, b) => '<button class="btn quiet small" type="button" data-zoom="' + Math.max(1, a - 15) + '-' + Math.min(n, b + 15) + '">Zoom the map to it</button>';
+    const close = '<button type="button" id="pick-close">Close</button>';
+    const zoomBtn = (a, b) => '<button type="button" data-zoom="' + Math.max(1, a - 15) + '-' + Math.min(n, b + 15) + '">Zoom the map to it</button>';
     if (pk.pos != null) {
       const pos = pk.pos, rows = [];
       for (const [k, l] of MAP_KINDS.concat([['ck2', 'CK2-attributed phospho']])) for (const v of S[k] || []) if (v[0] === pos) rows.push([k, l, v]);
-      const dark = (S.ck2m || []).find((v) => v[0] === pos);
-      const kin = rows.find(([k, , v]) => k === 'ph' && v.length > 4);
-      const where = [];
-      const inIdr = idrs.find((i) => ID.s[i] <= pos && ID.e[i] >= pos);
-      if (inIdr != null) where.push('IDR ' + ID.s[inIdr] + '–' + ID.e[inIdr] + ' (' + REGION_SHORT[ID.reg[inIdr] || 1] + (ID.kap[inIdr] != null ? ', κ ' + f3(ID.kap[inIdr]) : '') + ')');
-      for (const f of Rp.fl || []) if (f[1] <= pos && f[2] >= pos) where.push((f[0] ? 'C' : 'N') + '-side flank ' + f[1] + '–' + f[2] + ' of the domain at ' + f[3] + '–' + f[4] + ' (basic ' + fz(f[5]) + ', acidic ' + fz(f[6]) + ' z' + ((f[10] || 0) & 1 ? '; an acidic flank' : '') + ((f[10] || 0) & 2 ? '; a basic flank' : '') + ')');
-      for (const d of Rp.dom || []) if (d[0] <= pos && d[1] >= pos) where.push('domain ' + (ctx.names[d[2]] ? ctx.names[d[2]][1] : '') + ' ' + d[0] + '–' + d[1]);
-      for (const [k, l] of [['as', 'acidic stretch'], ['bp', 'basic patch'], ['rg', 'RG/RGG cluster']]) for (const d of Rp[k] || []) if (d[0] <= pos && d[1] >= pos) where.push(l + ' ' + d[0] + '–' + d[1]);
-      const KIN = OV.kinase_rows;
+      const dark = (S.ck2m || []).find((v) => v[0] === pos), kin = rows.find(([k, , v]) => k === 'ph' && v.length > 4), KIN = OV.kinase_rows;
+      const i = idrs.find((k) => ID.s[k] <= pos && ID.e[k] >= pos), res = seq[pos - 1];
+      const dq = rows.map(([k]) => modQ(k, res)).find((q) => q != null);
       box.innerHTML = '<div class="card-head"><div><h3>' + residueName(seq, pos) + '</h3><p class="sub">' + (rows.length ? rows.filter(([k]) => k !== 'ck2').map(([, l]) => esc(l)).join(' · ') : 'no site reported') + (dark ? ' · strong CK2 motif' : '') + '</p></div><div class="exp">' + zoomBtn(pos, pos) + close + '</div></div>' +
-        '<dl class="kv">' + rows.filter(([k]) => k !== 'ck2').map(([k, l, v]) => '<dt>' + esc(l) + '</dt><dd>' + esc(srcText(v)) + (k === 'kac' && typeof v[3] === 'number' ? '; stoichiometry ' + (100 * v[3]).toFixed(3) + '% (Hansen 2019)' : '') + (typeof v[3] === 'string' && v[3] ? '; ' + esc(v[3]) : '') + '</dd>').join('') +
+        '<dl class="kv">' + rows.filter(([k]) => k !== 'ck2').map(([k, l, v]) => '<dt>' + esc(l) + '</dt><dd>' + srcLinks(v[1], v[2], PR.acc[ctx.p]) + (k === 'kac' && typeof v[3] === 'number' ? '; stoichiometry ' + (100 * v[3]).toFixed(3) + '% (Hansen 2019)' : '') + (typeof v[3] === 'string' && v[3] ? '; ' + esc(v[3]) : '') + '</dd>').join('') +
+        (dq != null ? '<dt>Charge</dt><dd>' + res + ' ' + fsign(RES_Q[res] || 0, 0) + ' → ' + fsign(dq, 0) + ' when modified' + (i != null ? '; its IDR’s net charge ' + fsign(netOf(i), 0) + ' → ' + fsign(netOf(i) + dq - (RES_Q[res] || 0), 0) : '') + '</dd>' : '') +
         (rows.some(([k]) => k === 'ck2') ? '<dt>Kinase</dt><dd>CK2, as UniProt reports it</dd>' : '') +
         (kin ? '<dt>Kinase motifs</dt><dd>CK2 percentile ' + kin[2][3] + '; matches (≥ ' + OV.kinase_match + '): ' + (KIN.filter((_, b) => kin[2][4] & (1 << b)).map((r) => r[1]).join(', ') || 'none') + '; best-scoring kinase ' + esc(B.top_kinases[kin[2][5]]) + ' (' + kin[2][6] + ')</dd>' : '') +
         (kin && kin[2][7] != null ? '<dt>Occupancy</dt><dd>' + (kin[2][7] / 10).toFixed(1) + '% (median of 33 cell lines, Koenig 2026)</dd>' : '') +
         (dark ? '<dt>CK2 motif</dt><dd>percentile ' + dark[1] + ', no phosphosite on record</dd>' : '') +
-        '<dt>Where it sits</dt><dd>' + (where.length ? where.map(esc).join('<br>') : 'ordered, outside any domain') + '</dd></dl>' +
-        '<p class="flabel">Residues ' + Math.max(1, pos - 15) + '–' + Math.min(n, pos + 15) + '</p>' + seqHtml(ctx, Math.max(1, pos - 15), Math.min(n, pos + 15), pos) +
-        (rows.some(([k]) => k === 'mR') ? '<p class="note"><a href="' + PTM_SITE + '#' + PR.acc[ctx.p] + '" target="_blank" rel="noopener">This protein in the Methylarginine Site Explorer ↗</a></p>' : '');
+        '<dt>Where</dt><dd>' + residueReadout(ctx, pos).split('<br>').slice(1, -1).join('<br>') + '</dd></dl>' +
+        seqHtml(ctx, Math.max(1, pos - 15), Math.min(n, pos + 15), { pick: pos }) +
+        (rows.some(([k]) => k === 'mR') ? '<p class="note"><a href="' + PTM_SITE + '#' + PR.acc[ctx.p] + '" target="_blank" rel="noopener">Its methylarginine evidence in the Methylarginine Site Explorer ↗</a></p>' : '');
     } else {
-      const [a, b] = pk.seg, sub = seq.slice(a - 1, b), q = Array.from(sub, (c) => ('KR'.includes(c) ? 1 : 'DE'.includes(c) ? -1 : 0));
-      const fcr = q.filter(Boolean).length / q.length, ncpr = q.reduce((s, v) => s + v, 0) / q.length;
-      const i = pk.idr;
-      box.innerHTML = '<div class="card-head"><div><h3>' + esc(pk.what || 'Residues') + ' ' + a + '–' + b + '</h3><p class="sub">' + (b - a + 1) + ' residues · FCR ' + fcr.toFixed(3) + ' · NCPR ' + (ncpr >= 0 ? '+' : '') + ncpr.toFixed(3) +
-        (i != null ? ' · ' + esc(REGION_SHORT[ID.reg[i] || 1]) + (ID.kap[i] != null ? ' · κ ' + f3(ID.kap[i]) : '') + (ID.om[i] != null ? ' · Ω ' + f3(ID.om[i]) : '') + ' · δ z ' + fz(ID.dz[i]) : '') + '</p></div><div class="exp">' + zoomBtn(a, b) + close + '</div></div>' +
-        seqHtml(ctx, a, b) + '<p class="note">Basic residues blue, acidic red; modified residues underlined (hover for the kind).</p>';
+      const [a, b] = pk.seg, sub = seq.slice(a - 1, b), q = Array.from(sub, (c) => RES_Q[c] || 0), net = q.reduce((s, v) => s + v, 0);
+      const fm = sub.replace(/[^DE]/g, '').length / sub.length, fp = sub.replace(/[^KR]/g, '').length / sub.length;
+      box.innerHTML = '<div class="card-head"><div><h3>' + esc(pk.what || 'Residues') + ' ' + a + '–' + b + '</h3><p class="sub">' + (b - a + 1) + ' residues · ' + chargeCell(fm, fp, net / sub.length, ctOf(fm + fp, net / sub.length)) + ' net charge <b>' + fsign(net, 0) + '</b>' +
+        (pk.idr != null ? ' · <a href="#" data-goseg="' + pk.idr + '">its segment card</a>' : '') + '</p></div><div class="exp">' + zoomBtn(a, b) + close + '</div></div>' + seqHtml(ctx, a, b);
+      const gs = $('[data-goseg]', box);
+      if (gs) gs.addEventListener('click', (e) => { e.preventDefault(); openSeg('i' + gs.dataset.goseg); });
     }
     $('#pick-close', box).addEventListener('click', () => { PV.pick = null; drawProtMap(ctx); pickPanel(ctx); });
     $$('[data-zoom]', box).forEach((bt) => bt.addEventListener('click', () => { const [x, y] = bt.dataset.zoom.split('-').map(Number); PV.zoom = [x, y]; drawProtMap(ctx); $('#pmap-card').scrollIntoView({ block: 'nearest' }); }));
   }
+  const openSeg = (id) => {
+    const fold = $('details[data-fold="p-seg"]');
+    if (fold) fold.open = true;
+    const more = $('#seg-more');
+    if (!$('#seg-' + id) && more) more.click();
+    const el = $('#seg-' + id);
+    if (el) { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+  };
   function drawProtMap(ctx) {
     const box = $('#map-box');
     if (!box) return;
@@ -1442,16 +1808,17 @@
     const pal = C.screenPalette();
     $('#fig-legend').innerHTML = out.legend.map(([draw, label]) => '<span>' + C.swatchHtml(draw, pal) + esc(label) + '</span>').join('');
     $('#zoom-reset').hidden = !PV.zoom;
-    $('#map-sub').textContent = PR.acc[ctx.p] + ' · ' + fmt(out.len) + ' aa' + (PV.zoom ? ' · showing ' + out.v0 + '–' + out.v1 : '') + ' · drag across the map to zoom';
-    const svg = $('svg', box);
+    $('#map-sub').textContent = PR.acc[ctx.p] + ' · ' + fmt(out.len) + ' aa' + (PV.zoom ? ' · showing ' + out.v0 + '–' + out.v1 : '') + (ctx.uni ? ' · regions from UniProt' : '') + (ctx.af ? ' · confidence from AlphaFold DB' : '');
+    const svg = $('svg', box), xh = $('#xhair', svg);
     const toX = (e) => { const r = svg.getBoundingClientRect(); return ((e.clientX - r.left) / r.width) * out.W; };
-    const toPos = (vx) => out.v0 + ((vx - out.x0) / (out.x1 - out.x0)) * (out.v1 - out.v0 + 1);
+    const toPos = (vx) => Math.floor(out.v0 + ((vx - out.x0) / (out.x1 - out.x0)) * (out.v1 - out.v0 + 1));
     let start = null, brush = null, moved = false;
     svg.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       const vx = toX(e);
       if (vx < out.x0 || vx > out.x1) return;
       start = vx; moved = false;
+      dragging(true);
       svg.setPointerCapture(e.pointerId);
       brush = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       brush.setAttribute('y', 0); brush.setAttribute('height', out.H); brush.setAttribute('x', vx); brush.setAttribute('width', 0);
@@ -1459,29 +1826,64 @@
       svg.appendChild(brush);
     });
     svg.addEventListener('pointermove', (e) => {
-      if (start == null) return;
-      const cur = Math.max(out.x0, Math.min(out.x1, toX(e)));
-      if (Math.abs(cur - start) > 4) { moved = true; C.hideTip(); }
-      brush.setAttribute('x', Math.min(start, cur)); brush.setAttribute('width', Math.abs(cur - start));
+      const vx = toX(e);
+      if (start != null) {
+        const cur = Math.max(out.x0, Math.min(out.x1, vx));
+        if (Math.abs(cur - start) > 4) { moved = true; C.hideTip(); }
+        brush.setAttribute('x', Math.min(start, cur)); brush.setAttribute('width', Math.abs(cur - start));
+        return;
+      }
+      if (vx < out.x0 || vx > out.x1) { xh.setAttribute('visibility', 'hidden'); C.hideTip(); return; }
+      const pos = Math.max(out.v0, Math.min(out.v1, toPos(vx))), px = out.x0 + ((pos - out.v0 + 0.5) / (out.v1 - out.v0 + 1)) * (out.x1 - out.x0);
+      xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.setAttribute('visibility', 'visible');
+      const t = e.target.closest('.site-head');
+      C.showTip(e, residueReadout(ctx, t ? +t.dataset.pos : pos) + '<br><span class="muted">' + (t ? 'Click for the site' : e.target.closest('[data-seg]') ? 'Click to read this stretch' : 'Drag to zoom') + '</span>');
     });
+    svg.addEventListener('pointerleave', () => { xh.setAttribute('visibility', 'hidden'); C.hideTip(); });
     svg.addEventListener('pointerup', (e) => {
+      dragging(false);
       if (start == null) return;
       const cur = Math.max(out.x0, Math.min(out.x1, toX(e)));
-      const a = Math.round(toPos(Math.min(start, cur))), b = Math.round(toPos(Math.max(start, cur)));
+      const a = toPos(Math.min(start, cur)), b = toPos(Math.max(start, cur));
       start = null;
       brush.remove();
       if (moved && b - a >= 8) { PV.zoom = [a, b]; drawProtMap(ctx); return; }
-      // a click: the site head or the stretch under the pointer
-      const t = document.elementFromPoint(e.clientX, e.clientY), head = t && t.closest('.site-head'), seg = t && t.closest('[data-seg]');
+      const el = document.elementFromPoint(e.clientX, e.clientY), head = el && el.closest('.site-head'), seg = el && el.closest('[data-seg]');
       if (head) { PV.pick = { pos: +head.dataset.pos }; C.hideTip(); drawProtMap(ctx); pickPanel(ctx); $('#site-card').scrollIntoView({ block: 'nearest' }); }
       else if (seg) { const [x, y] = seg.dataset.seg.split('-').map(Number); PV.pick = { seg: [x, y], what: seg.dataset.what, idr: seg.dataset.idr != null ? +seg.dataset.idr : null }; C.hideTip(); pickPanel(ctx); $('#site-card').scrollIntoView({ block: 'nearest' }); }
     });
     svg.addEventListener('dblclick', () => { if (PV.zoom) { PV.zoom = null; drawProtMap(ctx); } });
   }
 
+  // ---- the 3D structure: AlphaFold DB model (3Dmol.js, as the Methylarginine Site Explorer loads it)
+  function structureView(ctx, mode) {
+    const host = $('#af-viewer'), note = $('#af-note');
+    if (!host) return;
+    if (!ctx.af) { host.innerHTML = '<p class="note">' + (ctx.afTried ? 'No AlphaFold DB model for ' + esc(PR.acc[ctx.p]) + '.' : 'Looking up AlphaFold DB…') + '</p>'; return; }
+    C.load3Dmol().then((lib) => C.fetchText(ctx.af.entry.pdbUrl).then((pdb) => {
+      if (!$('#af-viewer')) return;
+      host.innerHTML = '';
+      const v = lib.createViewer(host, { backgroundColor: C.cssVar('--surface') || 'white' });
+      v.addModel(pdb, 'pdb');
+      const colourOf = (atom) => {
+        const pos = atom.resi, c = ctx.seq[pos - 1];
+        if (mode === 'plddt') return plddtCol(atom.b);
+        if (mode === 'idr') { const i = ctx.idrs.find((k) => ID.s[k] <= pos && ID.e[k] >= pos); return i == null ? '#C7D4D9' : TRACK_LIGHT[CT_COL[ID.ct[i]]]; }
+        return c === 'D' || c === 'E' ? TRACK_LIGHT.acidic : c === 'K' || c === 'R' ? TRACK_LIGHT.basic : '#D9DEE2';
+      };
+      v.setStyle({}, { cartoon: { colorfunc: colourOf, thickness: 0.4 } });
+      const shown = mapKinds(), ck2 = new Set((ctx.S.ck2 || []).map((x) => x[0]));
+      for (const [k] of MAP_KINDS) if (shown.has(k)) for (const x of ctx.S[k] || []) v.addStyle({ resi: x[0], atom: 'CA' }, { sphere: { radius: 1.2, color: TRACK_LIGHT[KCOL[k === 'ph' && ck2.has(x[0]) ? 'ck2' : k]] } });
+      v.setHoverable({}, true, (atom, viewer) => { if (!atom.label) atom.label = viewer.addLabel(ctx.seq[atom.resi - 1] + atom.resi + (atom.b != null ? ' · pLDDT ' + atom.b.toFixed(0) : ''), { position: atom, backgroundColor: '#111827', fontColor: 'white', fontSize: 12 }); },
+        (atom, viewer) => { if (atom.label) { viewer.removeLabel(atom.label); delete atom.label; } });
+      v.zoomTo(); v.zoom(1.4); v.render();
+      note.textContent = 'AlphaFold DB ' + ctx.af.entry.entryId + (ctx.af.entry.latestVersion ? ' v' + ctx.af.entry.latestVersion : '') + ' · spheres: the modification sites shown on the map · hover a residue for its name and confidence.';
+    })).catch(() => { host.innerHTML = '<p class="note">The structure viewer could not load.</p>'; });
+  }
+
   async function proteinView(key, params, token) {
     await loadProteins();
-    const K = key.toUpperCase(), p = byAcc.has(K) ? byAcc.get(K) : byGene.get(K);
+    const K0 = key.toUpperCase(), p = byAcc.has(K0) ? byAcc.get(K0) : byGene.get(K0);
     if (p == null) { view().innerHTML = '<div class="panel">No reviewed human protein called <b>' + esc(key) + '</b>. <a href="#proteins?q=' + encodeURIComponent(key) + '">Search the protein table</a></div>'; return; }
     const acc = PR.acc[p];
     const [sh] = await Promise.all([loadShard(acc), loadIdrs()]);
@@ -1489,88 +1891,127 @@
     const Rp = sh.prot[acc], seq = Rp.seq, n = seq.length, S = Rp.s || {};
     const idrs = [];
     for (let i = 0; i < ID.p.length; i++) if (ID.p[i] === p) idrs.push(i);
-    const ctx = { p, seq, Rp, S, idrs, names: sh.names };
+    const ctx = { p, seq, Rp, S, idrs, names: sh.names, xl: Rp.xl || null, uni: null, af: null, afTried: false };
     if (PV.p !== p) Object.assign(PV, { p, zoom: null, pick: null });
-    const hl = (params.get('f') || '').match(/^(\d+)-(\d+)$/);
+    const hl = (params.get('f') || '').match(/^(\d+)-(\d+)$/), site = +(params.get('site') || 0);
     PV.hl = hl ? [+hl[1], +hl[2]] : null;
     if (PV.hl && n > 400) PV.zoom = [Math.max(1, PV.hl[0] - 60), Math.min(n, PV.hl[1] + 60)];
     if (PV.hl) PV.pick = { seg: PV.hl, what: 'Selected', idr: idrs.find((i) => ID.s[i] === PV.hl[0] && ID.e[i] === PV.hl[1]) ?? null };
+    if (site) { PV.pick = { pos: site }; if (n > 300) PV.zoom = [Math.max(1, site - 60), Math.min(n, site + 60)]; }
     UI.detail = p;
     if (!UI.pOpen || UI.pOpen.p !== p) UI.pOpen = { p, open: new Map() };
+    const segs = segmentsOf(ctx);
+    // highlights: what is unusual about this protein, each opening its place
+    const acidic = idrs.filter((i) => ID.ct[i] === 3).sort((a, b) => ID.ncpr[a] - ID.ncpr[b])[0], basic = idrs.filter((i) => ID.ct[i] === 4).sort((a, b) => ID.ncpr[b] - ID.ncpr[a])[0];
+    const glyph = (i) => '<span class="hg-seq">' + Array.from(seq.slice(ID.s[i] - 1, ID.e[i]).match(/[DEKR]{2}.{0,4}/) ? seq.slice(ID.s[i] - 1, ID.e[i]).match(/[DEKR]{2}.{0,4}/)[0] : seq.slice(ID.s[i] - 1, ID.s[i] + 5)).slice(0, 6).map((c) => '<i class="' + ('DE'.includes(c) ? 'a' : 'KR'.includes(c) ? 'b' : '') + '">' + c + '</i>').join('') + '</span>';
+    const hi = [];
+    if (acidic != null) hi.push({ go: 'seg:i' + acidic, glyph: glyph(acidic), big: fsign(netOf(acidic), 0), dir: 'down', label: 'Most acidic IDR, ' + ID.s[acidic] + '–' + ID.e[acidic] + ' (' + (ID.e[acidic] - ID.s[acidic] + 1) + ' aa)', kind: rankText(acidic), tip: 'Net charge ' + fsign(netOf(acidic), 0) + ': D/E ' + Math.round(ID.fde[acidic] / 10) + '%, K/R ' + Math.round(ID.frk[acidic] / 10) + '%. Click for its sequence and modifications.' });
+    if (basic != null) hi.push({ go: 'seg:i' + basic, glyph: glyph(basic), big: fsign(netOf(basic), 0), dir: 'up', label: 'Most basic IDR, ' + ID.s[basic] + '–' + ID.e[basic] + ' (' + (ID.e[basic] - ID.s[basic] + 1) + ' aa)', kind: rankText(basic), tip: 'Net charge ' + fsign(netOf(basic), 0) + ': K/R ' + Math.round(ID.frk[basic] / 10) + '%, D/E ' + Math.round(ID.fde[basic] / 10) + '%. Click for its sequence and modifications.' });
+    const inSegs = new Map();
+    for (const sg of segs) for (const x of sg.sites) inSegs.set(x.pos + x.k, x);
+    const inIdr = [...inSegs.values()], dq = inIdr.reduce((t, x) => { const q = modQ(x.k, seq[x.pos - 1]); return q == null ? t : t + q - (RES_Q[seq[x.pos - 1]] || 0); }, 0);
+    const nSites = OV.kinds.filter(([k]) => k !== 'ck2').reduce((s, [k]) => s + (S[k] || []).length, 0);
+    if (nSites) hi.push({ go: 'sites', glyph: C.aGlyph.pins(), big: fmt(inIdr.length) + ' of ' + fmt(nSites), dir: 'up', label: 'modification sites in its IDRs and charged flanks', kind: dq ? 'all modified, they would change the charge by ' + fsign(dq, 0) : 'none changes charge in the model', tip: 'Sites inside disordered regions; the charge change counts phosphate −2, acetyl-K −1, acidic acyl-K −2, citrulline −1, ADP-ribosyl −2, glutamyl −1 relative to the unmodified residue.' });
+    const topFl = (Rp.fl || []).filter((f) => f[10]).sort((a, b) => Math.max(b[8] || 0, b[9] || 0) - Math.max(a[8] || 0, a[9] || 0))[0];
+    if (topFl) { const ac = (topFl[10] & 1) && (topFl[9] || 0) >= (topFl[8] || 0); hi.push({ go: 'fl:' + topFl[1] + '-' + topFl[2], glyph: C.aGlyph.struct(), big: pctTop(ac ? topFl[9] : topFl[8]), dir: ac ? 'down' : 'up', label: (ac ? 'Acidic' : 'Basic') + ' flank ' + topFl[1] + '–' + topFl[2], kind: (topFl[0] ? 'after' : 'before') + ' the domain at ' + topFl[3] + '–' + topFl[4], tip: 'Its best domain flank by the ' + (ac ? 'acidic' : 'basic') + ' score, against all 121,444 flanks.' }); }
+    const xlr = ctx.xl ? (ctx.xl.rna || []).filter((q) => segs.some((sg) => q >= sg.s && q <= sg.e)).length : 0;
+    if (ctx.xl && (ctx.xl.rna || []).length) hi.push({ go: 'map', glyph: C.aGlyph.cls(), big: fmt(xlr) + ' of ' + fmt(ctx.xl.rna.length), dir: 'up', label: 'RNA-crosslinked residues in its IDRs', kind: 'in living cells', tip: 'Residues UV-crosslinked to RNA in cells (the Methylarginine Site Explorer’s compilation); the map shows where.' });
     const ext = (href, label) => '<a class="btn quiet small" href="' + href + '" target="_blank" rel="noopener">' + label + ' ↗</a>';
-    const kinds = OV.kinds.filter(([k]) => k !== 'ck2' && (S[k] || []).length).map(([k, l]) => [k, l, S[k].length]).sort((a, b) => b[2] - a[2]);
-    const nSites = kinds.reduce((s, x) => s + x[2], 0);
-    const best = (zi, pi, bit) => { const fl = (Rp.fl || []).filter((f) => f[zi] != null).sort((a, b) => b[zi] - a[zi])[0]; return fl ? [fz(fl[zi]), (fl[pi] / 10).toFixed(1) + 'th percentile' + ((fl[10] || 0) & bit ? ' · top tenth' : '') + ' · ' + fl[1] + '–' + fl[2]] : ['—', 'no domain flank']; };
-    const bb = best(5, 8, 2), ba = best(6, 9, 1);
-    const regs = [1, 2, 3, 4, 5].map((r) => [r, idrs.filter((i) => (ID.reg[i] || 1) === r).length]).filter(([, c]) => c);
-    view().innerHTML = '<div class="detail-head"><div class="detail-title"><h2>' + esc(geneOf(p)) + '</h2><span class="pn">' + esc(PR.name[p]) + '</span></div>' +
+    const prow = (k, title, inner, open, sum) => C.foldHtml(k, title, inner, open, sum);
+    view().innerHTML = '<nav class="crumbs"><a href="#proteins">Proteins</a> › <b>' + esc(geneOf(p)) + '</b></nav>' +
+      '<div class="detail-head"><div class="detail-title"><h2>' + esc(geneOf(p)) + '</h2><span class="pn">' + esc(PR.name[p]) + '</span></div>' +
+      '<p class="pfunc" id="pfunc"><span class="muted">Function: loading from UniProt…</span></p>' +
       '<div class="detail-links"><span class="tag mono">' + esc(acc) + '</span><span class="tag">' + fmt(n) + ' aa</span><span class="tag">' + PR.dis[p] + '% disordered</span>' +
       OV.classes.filter((c, b) => PR.cls[p] & (1 << b)).map((c) => '<span class="tag">' + esc(c[1]) + '</span>').join('') +
-      ext('https://www.uniprot.org/uniprotkb/' + acc + '/entry', 'UniProt') + ext(PTM_SITE + '#' + acc, 'Methylarginine Site Explorer') + ext('https://alphafold.ebi.ac.uk/entry/' + acc, 'AlphaFold') +
-      ext('https://mobidb.org/' + acc, 'MobiDB') + ext('https://www.ebi.ac.uk/interpro/protein/UniProt/' + acc + '/', 'InterPro') + '</div></div>' +
-      '<div class="facts">' +
-      C.fact(fmt(nSites), 'Modification sites', kinds.slice(0, 3).map(([, l, c]) => fmt(c) + ' ' + esc(l.toLowerCase())).join(', ') || 'none reported') +
-      C.fact(fmt(idrs.length), 'IDRs', regs.length ? regs.map(([r, c]) => (c > 1 ? c + '× ' : '') + 'R' + r).join(', ') + ' (Das–Pappu)' : 'no IDR of ' + OV.settings.min_idr + ' aa or more') +
-      C.fact(bb[0], 'Best basic flank (z)', bb[1]) + C.fact(ba[0], 'Best acidic flank (z)', ba[1]) + '</div>' +
-      C.foldHtml('p-map', 'Protein map', '<div class="card fig-card" id="pmap-card"><div class="card-head"><div><h3>' + esc(geneOf(p)) + ': sites, flanks and charge</h3><p class="sub" id="map-sub"></p></div>' +
+      ext('https://www.uniprot.org/uniprotkb/' + acc + '/entry', 'UniProt') + '<a class="btn small" href="' + PTM_SITE + '#' + acc + '" target="_blank" rel="noopener">Methylarginine Site Explorer ↗</a>' +
+      '<details class="links-more"><summary class="btn quiet small">More links</summary><div class="links-menu">' + ext('https://alphafold.ebi.ac.uk/entry/' + acc, 'AlphaFold') + ext('https://mobidb.org/' + acc, 'MobiDB') +
+      ext('https://www.ebi.ac.uk/interpro/protein/UniProt/' + acc + '/', 'InterPro') + ext('https://research.bioinformatics.udel.edu/iptmnet/entry/' + acc + '/', 'iPTMnet') + '</div></details></div></div>' +
+      (hi.length ? C.aHighlights(hi) : '') +
+      prow('p-map', 'Protein map', '<div class="card fig-card" id="pmap-card"><div class="card-head"><div><h3>' + esc(geneOf(p)) + ': charge, disorder and modifications</h3><p class="sub" id="map-sub"></p></div>' +
         '<div class="exp" role="group" aria-label="Figure export"><button type="button" id="zoom-reset" hidden>Reset zoom</button><button type="button" id="fig-svg">SVG</button><button type="button" id="fig-png">PNG</button></div></div>' +
         '<div class="fig-controls"><div class="seg" role="group" aria-label="Site labels"><span>Site labels</span>' + [['auto', 'Auto'], ['all', 'All'], ['none', 'None']].map(([k, l]) => '<button type="button" data-lab="' + k + '" aria-pressed="' + (PV.labels === k) + '">' + l + '</button>').join('') + '</div>' +
-        '<details class="col-menu"><summary class="btn quiet small">Sites shown</summary><div class="col-pop" role="group" aria-label="Kinds of site drawn">' +
-        MAP_KINDS.map(([k, l]) => '<label class="check"><input type="checkbox" data-kind="' + k + '"' + (mapKinds().has(k) ? ' checked' : '') + (S[k] && S[k].length ? '' : ' disabled') + '> ' + esc(l) + ' <span class="muted">' + fmt((S[k] || []).length) + '</span></label>').join('') + '</div></details></div>' +
+        '<details class="col-menu"><summary class="btn quiet small">Sites</summary><div class="col-pop" role="group" aria-label="Kinds of site drawn">' +
+        MAP_KINDS.map(([k, l]) => '<label class="check"><input type="checkbox" data-kind="' + k + '"' + (mapKinds().has(k) ? ' checked' : '') + ((S[k] || []).length ? '' : ' disabled') + '> ' + esc(l) + ' <span class="muted">' + fmt((S[k] || []).length) + '</span></label>').join('') + '</div></details>' +
+        '<details class="col-menu"><summary class="btn quiet small">Rows</summary><div class="col-pop" role="group" aria-label="Rows drawn">' + MAP_ROWS.map(([k, l]) => '<label class="check"><input type="checkbox" data-row="' + k + '"' + (mapRows().has(k) ? ' checked' : '') + '> ' + esc(l) + '</label>').join('') + '</div></details></div>' +
         '<div class="map-box" id="map-box"></div><details class="key-fold" open><summary>Key</summary><div class="legend" id="fig-legend"></div></details>' +
-        '<p class="note">Hover a mark for what it is; click a site or a stretch to read it below; drag across the map to zoom in, double-click to zoom out. SVG and PNG reproduce this view with a title and key.</p></div>', true, fmt(nSites) + ' sites') +
+        '<p class="note">Point anywhere for what is at that residue; click a site or a stretch to read it below; drag across to zoom, double-click to zoom out. SVG and PNG reproduce this view with a title and key.</p></div>', true, fmt(nSites) + ' sites · ' + idrs.length + ' IDRs') +
       '<div class="card" id="site-card" hidden></div>' +
       '<div class="p-folds">' +
-      C.foldHtml('p-fl', 'Domain flanks', '<div id="pfl"></div>', false, fmt((Rp.fl || []).length) + ' flanks') +
-      C.foldHtml('p-idr', 'IDRs', '<div id="pidr"></div>', false, fmt(idrs.length) + ' IDRs') +
-      C.foldHtml('p-sites', 'Sites', '<div id="psites"></div>', false, fmt(nSites) + ' sites') +
-      C.foldHtml('p-seq', 'Sequence', '<div class="card"><div class="card-head"><div><h3>Sequence</h3><p class="sub">Basic residues blue, acidic red, modified residues underlined; hover a residue for its marks.</p></div><div class="exp"><button type="button" id="copy-fasta">Copy FASTA</button></div></div>' + seqHtml(ctx, 1, n) + '</div>', false, fmt(n) + ' aa') + '</div>';
+      prow('p-seg', 'Charged segments', '<div class="card"><p class="sub">Each disordered region, and each acidic or basic flank outside one: its sequence coloured by charge (acidic red, basic blue, modified residues underlined), its net charge along the sequence (5-residue mean), and what its modifications would do to its charge. Tick sites to see.</p><div id="segs"></div></div>', true,
+        [3, 4, 2].filter((t) => segs.some((x) => x.ct === t)).map((t) => segs.filter((x) => x.ct === t).length + ' ' + CT[t].toLowerCase()).join(' · ') || (segs.length ? 'few charges' : 'no IDR of ' + OV.settings.min_idr + ' aa or more')) +
+      prow('p-sites', 'Modification sites', '<div id="psites"></div>', false, fmt(nSites) + ' sites') +
+      prow('p-fl', 'Domain flanks', '<div id="pfl"></div>', false, fmt((Rp.fl || []).length) + ' flanks') +
+      prow('p-3d', '3D structure', '<div class="card"><div class="card-head"><div><h3>AlphaFold model</h3><p class="sub" id="af-note">Loads when opened.</p></div><div class="seg" role="group" aria-label="Colour the structure by"><span>Colour by</span>' +
+        [['charge', 'Charge'], ['idr', 'IDRs'], ['plddt', 'Confidence']].map(([k, l], j) => '<button type="button" data-afc="' + k + '" aria-pressed="' + (j === 0) + '">' + l + '</button>').join('') + '</div></div><div class="af-viewer" id="af-viewer"></div></div>', false, 'AlphaFold DB') +
+      prow('p-seq', 'Sequence', '<div class="card"><div class="card-head"><div><h3>Sequence</h3><p class="sub">Basic residues blue, acidic red, modified residues underlined; hover a residue for its marks.</p></div><div class="exp"><button type="button" id="copy-fasta">Copy FASTA</button></div></div>' + seqHtml(ctx, 1, n) + '</div>', false, fmt(n) + ' aa') + '</div>';
     document.title = geneOf(p) + ' · IDR Explorer';
     drawProtMap(ctx);
     pickPanel(ctx);
+    // segment cards: the most charged first when there are many
+    const segOrder = segs.slice().sort((a, b) => a.s - b.s), MANY = 8;
+    const strong = segs.length > MANY ? new Set(segs.slice().sort((a, b) => Math.abs(b.net) + b.sites.length - Math.abs(a.net) - a.sites.length).slice(0, MANY).map((x) => x.id)) : null;
+    const drawSegs = (all) => {
+      const list = all || !strong ? segOrder : segOrder.filter((x) => strong.has(x.id));
+      $('#segs').innerHTML = list.map((sg) => segCard(ctx, sg)).join('') + (!all && strong ? '<button class="btn" type="button" id="seg-more">Show all ' + segs.length + ' segments (showing the ' + MANY + ' most charged or modified)</button>' : '') +
+        (segs.length ? '' : '<p class="note">No disordered region of ' + OV.settings.min_idr + ' or more residues, and no acidic or basic flank.</p>');
+      for (const sg of list) bindSegCard(ctx, $('#seg-' + sg.id), sg);
+      $$('[data-segzoom]').forEach((b) => b.addEventListener('click', () => { const [a, c] = b.dataset.segzoom.split('-').map(Number); PV.zoom = [Math.max(1, a - 20), Math.min(n, c + 20)]; PV.hl = [a, c]; drawProtMap(ctx); $('#pmap-card').scrollIntoView({ block: 'start', behavior: 'smooth' }); }));
+      const more = $('#seg-more');
+      if (more) more.addEventListener('click', () => drawSegs(true));
+    };
+    drawSegs(false);
+    $$('.a-hi-c[data-go]').forEach((b) => b.addEventListener('click', () => {
+      const [k, v] = b.dataset.go.split(':');
+      if (k === 'seg') { const i = +v.slice(1); PV.zoom = n > 300 ? [Math.max(1, ID.s[i] - 30), Math.min(n, ID.e[i] + 30)] : null; PV.hl = [ID.s[i], ID.e[i]]; drawProtMap(ctx); openSeg(v); }
+      else if (k === 'fl') { const [a, c] = v.split('-').map(Number); PV.zoom = n > 300 ? [Math.max(1, a - 40), Math.min(n, c + 40)] : null; PV.hl = [a, c]; drawProtMap(ctx); const sg = segs.find((x) => x.i == null && x.s <= a && x.e >= c); if (sg) openSeg(sg.id); else $('#pmap-card').scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+      else if (k === 'sites') { const f = $('details[data-fold="p-sites"]'); f.open = true; f.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+      else $('#pmap-card').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }));
     $('#zoom-reset').addEventListener('click', () => { PV.zoom = null; drawProtMap(ctx); });
     $$('[data-lab]').forEach((b) => b.addEventListener('click', () => { PV.labels = b.dataset.lab; $$('[data-lab]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); drawProtMap(ctx); }));
     $$('[data-kind]').forEach((cb) => cb.addEventListener('change', () => { const s = mapKinds(); if (cb.checked) s.add(cb.dataset.kind); else s.delete(cb.dataset.kind); store.set('map-kinds', JSON.stringify([...s])); drawProtMap(ctx); }));
+    $$('[data-row]').forEach((cb) => cb.addEventListener('change', () => { const s = mapRows(); if (cb.checked) s.add(cb.dataset.row); else s.delete(cb.dataset.row); store.set('map-rows', JSON.stringify([...s])); drawProtMap(ctx); }));
     const fig = (kind) => C.exportFigure(kind, protMapSvg(ctx, { exp: true }), geneOf(p) + '_idr_map' + (PV.zoom ? '_' + PV.zoom[0] + '-' + PV.zoom[1] : ''));
     $('#fig-svg').addEventListener('click', () => fig('svg'));
     $('#fig-png').addEventListener('click', () => fig('png'));
     $('#copy-fasta').addEventListener('click', (e) => { try { navigator.clipboard.writeText('>' + acc + ' ' + geneOf(p) + '\n' + seq.replace(/(.{60})/g, '$1\n') + '\n'); e.currentTarget.textContent = 'Copied'; } catch (err) { /* no clipboard */ } });
     $$('details.fold[data-fold^="p-"]').forEach((d) => d.addEventListener('toggle', () => UI.pOpen.open.set(d.dataset.fold, d.open)));
-    // the folds' tables: a row zooms the map to it and reads it in the panel
-    const goSeg = (a, b, what, idr) => { PV.zoom = [Math.max(1, a - 15), Math.min(n, b + 15)]; PV.hl = [a, b]; PV.pick = { seg: [a, b], what, idr }; drawProtMap(ctx); pickPanel(ctx); $('#pmap-card').scrollIntoView({ block: 'start', behavior: 'smooth' }); };
-    const fl = Rp.fl || [], stF = { key: 'fs', dir: 1, n: 200 }, stI = { key: 's', dir: 1, n: 200 }, stS = { key: 'pos', dir: 1, n: 100 };
-    const drawFl = () => tbl($('#pfl'), { id: 'p-fl', caption: 'Domain flanks of ' + geneOf(p), rows: fl.map((_, k) => k), st: stF, onState: drawFl, note: 'Click a flank to zoom the map to it.',
+    // live: UniProt's function and regions, AlphaFold's confidence; the map redraws as each arrives
+    C.loadUniProt(acc).then((u) => {
+      if (token !== routeToken || !$('#pfunc')) return;
+      ctx.uni = u;
+      $('#pfunc').innerHTML = u && u.func ? '<span class="pf-text">' + esc(u.func.replace(/\s*\(PubMed:[^)]*\)/g, '')) + '</span> <span class="muted">Function, from <a href="https://www.uniprot.org/uniprotkb/' + acc + '/entry#function" target="_blank" rel="noopener">UniProt</a></span>' : '<span class="muted">' + (u ? 'No function text in UniProt.' : 'UniProt could not be reached.') + '</span>';
+      drawProtMap(ctx);
+    });
+    let afMode = 'charge';
+    const afFold = $('details[data-fold="p-3d"]');
+    C.loadAF(acc).then((af) => { if (token !== routeToken) return; ctx.af = af; ctx.afTried = true; drawProtMap(ctx); if (afFold && afFold.open) structureView(ctx, afMode); });
+    afFold.addEventListener('toggle', () => { if (afFold.open) structureView(ctx, afMode); });
+    $$('[data-afc]').forEach((b) => b.addEventListener('click', () => { afMode = b.dataset.afc; $$('[data-afc]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); structureView(ctx, afMode); }));
+    // the folds' tables: a row shows its place on the map
+    const goSeg = (a, b, what, idr) => { PV.zoom = n > 300 ? [Math.max(1, a - 15), Math.min(n, b + 15)] : null; PV.hl = [a, b]; PV.pick = { seg: [a, b], what, idr }; drawProtMap(ctx); pickPanel(ctx); $('#pmap-card').scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+    const fl = Rp.fl || [], stF = { key: 'fs', dir: 1, n: 200 }, stS = { key: 'pos', dir: 1, n: 100 };
+    const drawFl = () => tbl($('#pfl'), { id: 'p-fl', caption: 'Domain flanks of ' + geneOf(p), rows: fl.map((_, k) => k), st: stF, onState: drawFl, note: 'Every domain edge’s flank; click one to see it on the map.',
       onOpen: (k) => goSeg(fl[k][1], fl[k][2], (fl[k][0] ? 'C' : 'N') + '-side flank'),
-      cols: [{ k: 'fs', label: 'Flank', tdCls: 'nw', get: (k) => fl[k][1], td: (k) => fl[k][1] + '–' + fl[k][2] + ' <span class="muted">' + (fl[k][0] ? 'C' : 'N') + '</span>' },
+      cols: [{ k: 'fs', label: 'Flank', tdCls: 'nw', get: (k) => fl[k][1], td: (k) => fl[k][1] + '–' + fl[k][2] + ' <span class="muted">' + (fl[k][0] ? 'after' : 'before') + '</span>' },
         { k: 'dom', label: 'Domain', get: (k) => fl[k][3], td: (k) => fl[k][3] + '–' + fl[k][4] },
-        { k: 'zb', label: 'Basic score', num: true, get: (k) => z(fl[k][5]), td: (k) => zChip(fl[k][5], 'basic') + TOPB((fl[k][10] || 0) & 2) },
-        { k: 'pb', label: 'Basic percentile', num: true, get: (k) => (fl[k][8] == null ? null : fl[k][8] / 10) },
-        { k: 'za', label: 'Acidic score', num: true, get: (k) => z(fl[k][6]), td: (k) => zChip(fl[k][6], 'acidic') + TOPB((fl[k][10] || 0) & 1) },
-        { k: 'pa', label: 'Acidic percentile', num: true, get: (k) => (fl[k][9] == null ? null : fl[k][9] / 10) },
-        { k: 'dp', label: 'Das–Pappu', get: (k) => fl[k][12] || null, td: (k) => dpChip(fl[k][12]) },
-        { k: 'kap', label: 'κ', num: true, get: (k) => (fl[k][11] == null ? null : fl[k][11] / 1000), td: (k) => f3(fl[k][11]) },
+        { k: 'za', label: 'Acidic score', num: true, get: (k) => (fl[k][9] == null ? null : fl[k][9] / 10), td: (k) => pctTop(fl[k][9]) + TOPB((fl[k][10] || 0) & 1) },
+        { k: 'zb', label: 'Basic score', num: true, get: (k) => (fl[k][8] == null ? null : fl[k][8] / 10), td: (k) => pctTop(fl[k][8]) + TOPB((fl[k][10] || 0) & 2) },
+        { k: 'kap', label: 'Charge segregation (κ)', num: true, get: (k) => (fl[k][11] == null ? null : fl[k][11] / 1000), td: (k) => f3(fl[k][11]) },
         { k: 'chem', label: 'Chemistry', get: (k) => CHEM_SHORT[fl[k][7]] || null }] });
-    const drawIdr = () => tbl($('#pidr'), { id: 'p-idr', caption: 'IDRs of ' + geneOf(p), rows: idrs, st: stI, onState: drawIdr, note: 'Click an IDR to zoom the map to it.',
-      onOpen: (i) => goSeg(ID.s[i], ID.e[i], 'IDR', i),
-      cols: [{ k: 's', label: 'IDR', get: (i) => ID.s[i], td: (i) => ID.s[i] + '–' + ID.e[i] }, { k: 'len', label: 'Length', num: true, get: (i) => ID.e[i] - ID.s[i] + 1 },
-        { k: 'dp', label: 'Das–Pappu', get: (i) => ID.reg[i] || null, td: (i) => dpChip(ID.reg[i]) },
-        { k: 'fcr', label: 'FCR', num: true, get: (i) => ID.fcr[i] / 1000, td: (i) => f3(ID.fcr[i]) }, { k: 'ncpr', label: 'NCPR', num: true, get: (i) => ID.ncpr[i] / 1000, td: (i) => f3(ID.ncpr[i]) },
-        { k: 'kap', label: 'κ', num: true, get: (i) => (ID.kap[i] == null ? null : ID.kap[i] / 1000), td: (i) => f3(ID.kap[i]) },
-        { k: 'om', label: 'Ω', num: true, get: (i) => (ID.om[i] == null ? null : ID.om[i] / 1000), td: (i) => f3(ID.om[i]) },
-        { k: 'dz', label: 'δ z', num: true, get: (i) => z(ID.dz[i]), td: (i) => fz(ID.dz[i]) },
-        { k: 'dn', label: 'Δ NCPR modified', num: true, get: (i) => (ID.nmod[i] ? ID.dn[i] / 1000 : null), td: (i) => (ID.nmod[i] ? f3(ID.dn[i]) : '') },
-        { k: 'nas', label: 'Acidic stretches', num: true, get: (i) => ID.nas[i] }, { k: 'nbp', label: 'Basic patches', num: true, get: (i) => ID.nbp[i] },
-        { k: 'mR', label: 'Methyl-R', num: true, get: (i) => ID.mR[i] }, { k: 'ph', label: 'Phospho-S/T', num: true, get: (i) => ID.ph[i] }] });
     const all = [];
     for (const [k, l] of MAP_KINDS) for (const v of S[k] || []) all.push({ k, l, v, pos: v[0] });
     const ck2s = new Set((S.ck2 || []).map((v) => v[0]));
-    const drawS = () => tbl($('#psites'), { id: 'p-sites', caption: 'Sites of ' + geneOf(p), rows: all.map((_, j) => j), st: stS, onState: drawS, note: 'Click a site to read it under the map.',
+    const segAt = (pos) => idrs.find((i) => ID.s[i] <= pos && ID.e[i] >= pos);
+    const drawS = () => tbl($('#psites'), { id: 'p-sites', caption: 'Sites of ' + geneOf(p), rows: all.map((_, j) => j), st: stS, onState: drawS, note: 'Click a site to read it on the map.',
       onOpen: (j) => { PV.pick = { pos: all[j].pos }; PV.zoom = n > 300 ? [Math.max(1, all[j].pos - 60), Math.min(n, all[j].pos + 60)] : PV.zoom; drawProtMap(ctx); pickPanel(ctx); $('#pmap-card').scrollIntoView({ block: 'start', behavior: 'smooth' }); },
-      cols: [{ k: 'pos', label: 'Site', get: (j) => all[j].pos, td: (j) => '<b>' + residueName(seq, all[j].pos) + '</b>' },
+      cols: [{ k: 'pos', label: 'Site', num: true, get: (j) => all[j].pos, td: (j) => '<b>' + residueName(seq, all[j].pos) + '</b>' },
         { k: 'kind', label: 'Modification', get: (j) => all[j].l, td: (j) => '<i class="kdot" style="background:var(--' + KCOL[all[j].k === 'ph' && ck2s.has(all[j].pos) ? 'ck2' : all[j].k] + ')"></i>' + esc(all[j].l) + (all[j].k === 'ph' && ck2s.has(all[j].pos) ? ' <span class="tag">CK2</span>' : '') },
-        { k: 'src', label: 'Reported by', get: (j) => srcText(all[j].v) },
+        { k: 'idr', label: 'Its IDR', get: (j) => { const i = segAt(all[j].pos); return i == null ? null : ID.ct[i]; }, td: (j) => { const i = segAt(all[j].pos); return i == null ? '<span class="muted">ordered</span>' : ctChip(ID.ct[i]) + ' <span class="muted">' + ID.s[i] + '–' + ID.e[i] + '</span>'; } },
+        { k: 'dq', label: 'Charge change', num: true, get: (j) => { const q = modQ(all[j].k, seq[all[j].pos - 1]); return q == null ? null : q - (RES_Q[seq[all[j].pos - 1]] || 0); }, td: (j) => { const q = modQ(all[j].k, seq[all[j].pos - 1]); return q == null ? '<span class="muted">—</span>' : fsign(q - (RES_Q[seq[all[j].pos - 1]] || 0), 0); }, tip: 'The charge the modification adds to the residue (idrkit.ptm)' },
+        { k: 'src', label: 'Reported by', get: (j) => srcText(all[j].v), td: (j) => srcLinks(all[j].v[1], all[j].v[2], acc) },
         { k: 'note', label: 'Detail', get: (j) => { const v = all[j].v; return all[j].k === 'ph' && v.length > 4 ? 'CK2 percentile ' + v[3] + (v[7] != null ? '; occupancy ' + (v[7] / 10).toFixed(1) + '%' : '') : all[j].k === 'kac' && typeof v[3] === 'number' ? 'stoichiometry ' + (100 * v[3]).toFixed(3) + '%' : typeof v[3] === 'string' ? v[3] : null; } }] });
-    drawFl(); drawIdr(); drawS();
+    drawFl(); drawS();
   }
 
   // ---------------------------------------------------------------- sources
@@ -1618,7 +2059,14 @@
     sug.innerHTML = m.map((i) => '<li><a href="#' + PR.acc[i] + '">' + esc(PR.gene[i] || PR.acc[i]) + ' <span class="muted">' + PR.acc[i] + ' · ' + esc(PR.name[i].slice(0, 40)) + '</span></a></li>').join('');
   });
   input.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') { await loadProteins(); const m = matches(input.value); if (m.length) location.hash = PR.acc[m[0]]; sug.hidden = true; }
+    if (e.key === 'Enter') {
+      await loadProteins();
+      // "FUS S42" or "P35637 R216": the protein, at that site
+      const site = input.value.trim().match(/^(\S+)\s+[A-Za-z]?(\d+)$/);
+      const m = matches(site ? site[1] : input.value);
+      if (m.length) location.hash = PR.acc[m[0]] + (site ? '?site=' + site[2] : '');
+      sug.hidden = true;
+    }
     if (e.key === 'ArrowDown' && !sug.hidden) { e.preventDefault(); const a = sug.querySelector('a'); if (a) a.focus(); }
     if (e.key === 'Escape') sug.hidden = true;
   });

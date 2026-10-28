@@ -46,7 +46,7 @@
   --adpr: #78350F;
   --ub: #3F4C55;
   /* Das-Pappu classes R1-R5 (weak, Janus, polyampholyte, negative, positive): checked with the dataviz validator */
-  --dp1: #1BAF7A; --dp2: #C98500; --dp3: #8E44AD; --dp4: #D64545; --dp5: #2F6FD6;
+  --dp1: #8A979F; --dp2: #C98500; --dp3: #8E44AD; --dp4: #D64545; --dp5: #2F6FD6;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -57,7 +57,7 @@
     --basic: #5B93E8; --acidic: #E8706F; --basic-wash: #1C3150; --acidic-wash: #4A2223;
     --domain: #1F5566; --domain-ink: #E3F4F8; --family: #40391F; --dis: #8FA6B0; --rg: #5A2C3A; --rg-ink: #F6C9D6;
     --meth: #E0708A; --kme: #D46BE0; --phospho: #8FA3AB; --ck2: #D9A548; --kac: #D95926; --sumo: #84CC16; --glu: #3DBB85; --hybrid: #B98BE0; --cit: #3FB5CF; --adpr: #FCD34D;
-    --ub: #C3CED4; --dp1: #199E70; --dp2: #C98500; --dp3: #A35CC4; --dp4: #DD5B5B; --dp5: #4F8BE6;
+    --ub: #C3CED4; --dp1: #7C8B93; --dp2: #C98500; --dp3: #A35CC4; --dp4: #DD5B5B; --dp5: #4F8BE6;
     color-scheme: dark;
   }
 }
@@ -68,7 +68,7 @@
   --basic: #5B93E8; --acidic: #E8706F; --basic-wash: #1C3150; --acidic-wash: #4A2223;
   --domain: #1F5566; --domain-ink: #E3F4F8; --family: #40391F; --dis: #8FA6B0; --rg: #5A2C3A; --rg-ink: #F6C9D6;
   --meth: #E0708A; --kme: #D46BE0; --phospho: #8FA3AB; --ck2: #D9A548; --kac: #D95926; --sumo: #84CC16; --glu: #3DBB85; --hybrid: #B98BE0; --cit: #3FB5CF; --adpr: #FCD34D;
-  --ub: #C3CED4; --dp1: #199E70; --dp2: #C98500; --dp3: #A35CC4; --dp4: #DD5B5B; --dp5: #4F8BE6;
+  --ub: #C3CED4; --dp1: #7C8B93; --dp2: #C98500; --dp3: #A35CC4; --dp4: #DD5B5B; --dp5: #4F8BE6;
   color-scheme: dark;
 }
 :root[data-theme="light"] { color-scheme: light; }
@@ -310,7 +310,7 @@ a.stat:hover { border-color: var(--teal-600); }
 #site-card .kv { display: grid; grid-template-columns: minmax(110px, 160px) 1fr; gap: 4px 14px; margin: 6px 0 10px; font-size: 0.9rem; }
 #site-card .kv dt { font-weight: 600; color: var(--ink-2); }
 #site-card .kv dd { margin: 0; }
-.map-box svg { width: 100%; height: auto; display: block; user-select: none; touch-action: pan-y; }
+.map-box svg { width: 100%; height: auto; display: block; user-select: none; -webkit-user-select: none; touch-action: pan-y; }
 .map-box svg .site-head, .map-box svg .hit { cursor: pointer; }
 .map-box svg .row-lab { cursor: help; }
 .map-box svg .site-head:hover { stroke-width: 2.4; }
@@ -321,3 +321,65 @@ a.stat:hover { border-color: var(--teal-600); }
 .chart-tools { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; font-size: 0.86rem; color: var(--muted); margin: 6px 0 10px; }
 .chart-tools select { font: inherit; padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); margin-left: 4px; }
 .tbl th .gk { text-transform: none; }
+
+/* ---- v3: charge in words, plots that select, the segment-centred protein page */
+:root { --rna: #7C3AED; --dna: #B7791F; --region: #E7ECEF; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --rna: #A78BFA; --dna: #D9A548; --region: #2A3F48; } }
+:root[data-theme="dark"] { --rna: #A78BFA; --dna: #D9A548; --region: #2A3F48; }
+.ct { display: inline-block; font-size: 0.72rem; font-weight: 600; line-height: 1.5; padding: 0 6px; border-radius: 999px; white-space: nowrap; cursor: help; }
+.ct1 { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line-strong); }
+.ct2 { background: color-mix(in srgb, var(--hybrid) 16%, transparent); color: var(--hybrid); }
+.ct3 { background: color-mix(in srgb, var(--acidic) 15%, transparent); color: var(--acidic); }
+.ct4 { background: color-mix(in srgb, var(--basic) 15%, transparent); color: var(--basic); }
+.cbar { display: inline-grid; gap: 2px; width: 56px; vertical-align: middle; margin-right: 6px; cursor: help; }
+.cbar i { display: block; height: 5px; border-radius: 3px; min-width: 1px; }
+.cbar i.m { background: var(--acidic); } .cbar i.p { background: var(--basic); }
+.cnet { font-variant-numeric: tabular-nums; }
+.pt { font-variant-numeric: tabular-nums; }
+.plot-card { margin-bottom: 16px; }
+.sc { position: relative; line-height: 0; user-select: none; -webkit-user-select: none; }
+.sc canvas { display: block; }
+.sc .sc-over { position: absolute; left: 0; top: 0; cursor: crosshair; touch-action: none; }
+.sc-key { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.82rem; color: var(--ink-2); margin-top: 6px; align-items: center; }
+.sc-key span { display: inline-flex; align-items: center; gap: 5px; }
+.sc-key i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.sc-key b { font-variant-numeric: tabular-nums; }
+.crumbs { font-size: 0.86rem; color: var(--muted); margin: 4px 0 6px; }
+.pfunc { max-width: 90ch; color: var(--ink-2); margin: 2px 0 8px; font-size: 0.95rem; }
+.pfunc .pf-text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pfunc:hover .pf-text { -webkit-line-clamp: unset; }
+.links-more { position: relative; display: inline-block; }
+.links-more > summary { list-style: none; cursor: pointer; }
+.links-more > summary::-webkit-details-marker { display: none; }
+.links-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; display: grid; gap: 4px; padding: 8px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 0.6rem; box-shadow: var(--shadow); }
+.a-hi { margin: 10px 0 14px; }
+.hg-seq i.a { color: var(--acidic); font-style: normal; font-weight: 700; } .hg-seq i.b { color: var(--basic); font-style: normal; font-weight: 700; }
+.seg-card { border: 1px solid var(--line); border-radius: 0.8rem; padding: 12px 14px; margin: 10px 0; background: var(--surface); scroll-margin-top: 80px; }
+.seg-card.flash { animation: flash 1.6s ease-out; }
+.seg-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.seg-head h4 { margin: 0 0 2px; font-size: 1.02rem; font-family: var(--font-body); font-weight: 700; }
+.seg-head .sub { margin: 0; font-size: 0.86rem; color: var(--ink-2); }
+.seg-seq .seq { margin: 8px 0 4px; }
+.segprof { width: 100%; height: 56px; display: block; }
+.sp-zero { stroke: var(--line-strong); }
+.sp-a { fill: var(--acidic); opacity: 0.75; } .sp-b { fill: var(--basic); opacity: 0.75; }
+.sp-before { fill: none; stroke: var(--ink-2); stroke-width: 1.2; stroke-dasharray: 3 2; }
+.seg-mods { margin-top: 6px; font-size: 0.86rem; color: var(--ink-2); }
+.whatif { margin-top: 6px; padding: 8px 10px; background: var(--surface-2); border-radius: var(--radius); }
+.whatif .btn { margin-left: 4px; }
+.wi-out { margin-left: 10px; }
+.wi-list { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
+.wi-list label { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 0.82rem; cursor: pointer; }
+.seq { white-space: normal; }
+.seq .n { color: var(--muted); white-space: pre; user-select: none; font-size: 0.8em; }
+.seq .m { background: color-mix(in srgb, var(--acidic) 18%, transparent); border-radius: 2px; }
+.af-viewer { position: relative; width: 100%; height: 480px; border-radius: var(--radius); overflow: hidden; background: var(--surface); border: 1px solid var(--line); }
+.ct-plot { width: 100%; max-width: 900px; height: auto; display: block; }
+.ct-plot.compact { max-width: 320px; }
+.ct-plot .cs1 { fill: #AEB8BF; } .ct-plot .cs2 { fill: var(--hybrid); } .ct-plot .cs3 { fill: var(--acidic); } .ct-plot .cs4 { fill: var(--basic); }
+.ct-lab { font-size: 11px; fill: var(--ink-2); }
+.ct-in { font-size: 10px; fill: var(--ink); pointer-events: none; } .ct-in.inv { fill: #fff; }
+.ct-plot .ds1 { fill: var(--dp1); } .ct-plot .ds2 { fill: var(--dp2); } .ct-plot .ds3 { fill: var(--dp3); } .ct-plot .ds4 { fill: var(--dp4); } .ct-plot .ds5 { fill: var(--dp5); }
+.dp { white-space: nowrap; font-weight: 600; padding: 0 6px; border-radius: 999px; }
+.dp-list { margin: 6px 0 0; padding-left: 0; list-style: none; display: grid; gap: 4px; }
+body.dragging, body.dragging * { user-select: none !important; -webkit-user-select: none !important; }

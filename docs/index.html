@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
-  <link rel="stylesheet" href="assets/ptm-core.css?v=20261029a">
-  <link rel="stylesheet" href="assets/idr.css?v=20261029a">
+  <link rel="stylesheet" href="assets/ptm-core.css?v=20261030a">
+  <link rel="stylesheet" href="assets/idr.css?v=20261030a">
   <script>
     try { var t = localStorage.getItem('idr-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
   </script>
@@ -30,12 +30,13 @@
         <a href="#proteins" data-view="proteins">Proteins</a>
         <a href="#flanks" data-view="flanks">Domain flanks</a>
         <a href="#idrs" data-view="idrs">IDRs</a>
+        <a href="#sites" data-view="sites">Sites</a>
         <a href="#definitions" data-view="definitions">Definitions</a>
         <a href="#about" data-view="about">Sources</a>
       </nav>
       <div class="search" role="search">
         <label for="q" class="visually-hidden">Find a protein</label>
-        <input id="q" type="search" placeholder="Gene or UniProt accession" autocomplete="off" aria-controls="suggest" aria-autocomplete="list">
+        <input id="q" type="search" placeholder="Gene, accession or site (HMGB1 S181)" autocomplete="off" aria-controls="suggest" aria-autocomplete="list">
         <ul id="suggest" class="suggest" hidden></ul>
       </div>
       <button class="theme-btn" id="theme-btn" type="button" aria-label="Switch light or dark theme">Theme</button>
@@ -52,8 +53,8 @@
   </footer>
   <div class="tip" id="tip" role="tooltip" hidden></div>
   <!-- ptm-core.js: the Methylarginine Site Explorer's charts, tests and exports (generated, tools/sync-ptm-core.mjs) -->
-  <script src="assets/ptm-core.js?v=20261029a" defer></script>
-  <script src="assets/idr-stats.js?v=20261029a" defer></script>
-  <script src="assets/idr.js?v=20261029a" defer></script>
+  <script src="assets/ptm-core.js?v=20261030a" defer></script>
+  <script src="assets/idr-stats.js?v=20261030a" defer></script>
+  <script src="assets/idr.js?v=20261030a" defer></script>
 </body>
 </html>

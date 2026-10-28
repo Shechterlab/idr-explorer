@@ -89,7 +89,12 @@
     "swatchHtml",
     "titled",
     "siteHead",
-    "fitFs"
+    "fitFs",
+    "loadUniProt",
+    "loadAF",
+    "load3Dmol",
+    "fetchJson",
+    "fetchText"
   ],
   "host": [
     "M",

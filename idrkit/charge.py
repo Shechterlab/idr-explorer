@@ -31,6 +31,23 @@ def fcr(seq: str) -> float:
     return sum(c in "DEKR" for c in seq) / len(seq) if seq else float("nan")
 
 
+# Charge type, in words, from two numbers: net charge per residue first (a segment with 20% D/E and 4% K/R is acidic
+# however few its charges), then the fraction of charged residues (FCR 0.25 is the Das & Pappu boundary of weak
+# polyampholytes, PNAS 110:13392, 2013).
+NET_CUT = 0.10      # |NCPR| at or above: acidic or basic (net charge 5 or more per 50 residues)
+FCR_CUT = 0.25      # FCR at or above, net charge below NET_CUT: mixed; below: few charges
+CHARGE_TYPES = ("few", "mixed", "acidic", "basic")
+
+
+def charge_type(fcr_value: float, ncpr_value: float) -> str:
+    """'acidic' (NCPR <= -0.10), 'basic' (NCPR >= +0.10), else 'mixed' (FCR >= 0.25) or 'few' (fewer charges)."""
+    if ncpr_value <= -NET_CUT:
+        return "acidic"
+    if ncpr_value >= NET_CUT:
+        return "basic"
+    return "mixed" if fcr_value >= FCR_CUT else "few"
+
+
 def scd(seq: str, his: float = 0.0) -> float:
     """Sequence charge decoration: (1/N) sum over i < j of q_i q_j sqrt(j - i).
 
